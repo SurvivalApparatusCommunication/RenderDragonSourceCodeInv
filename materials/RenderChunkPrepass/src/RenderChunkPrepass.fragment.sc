@@ -35,8 +35,8 @@ uniform vec4 RenderChunkFogAlpha;
 uniform vec4 BlockSkyAmbientContribution;
 
 SAMPLER2D(s_MatTexture, 0);
-SAMPLER2D(s_LightMapTexture, 1);
-SAMPLER2D(s_SeasonsTexture, 2);
+SAMPLER2D(s_SeasonsTexture, 1);
+SAMPLER2D(s_LightMapTexture, 2);
 BUFFER_RO(s_PBRData, PBRTextureData, 3);
 
 CONST(int) kPBRTextureDataFlagHasMaterialTexture  = (1 << 0);
