@@ -43,7 +43,11 @@ void main() {
     //StandardTemplate_VertSharedTransform
     vec3 worldPosition;
     #ifdef INSTANCING
-        mat4 model = mtxFromCols(i_data0, i_data1, i_data2, vec4(0.0, 0.0, 0.0, 1.0));
+        mat4 model;
+        model[0] = vec4(i_data0.x, i_data1.x, i_data2.x, 0);
+        model[1] = vec4(i_data0.y, i_data1.y, i_data2.y, 0);
+        model[2] = vec4(i_data0.z, i_data1.z, i_data2.z, 0);
+        model[3] = vec4(i_data0.w, i_data1.w, i_data2.w, 1);
         worldPosition = instMul(model, vec4(a_position, 1.0)).xyz;
     #else
         worldPosition = mul(World, vec4(a_position, 1.0)).xyz;
