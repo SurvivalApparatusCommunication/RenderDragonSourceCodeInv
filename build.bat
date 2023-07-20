@@ -92,15 +92,12 @@ goto :end
 @REM %1 platform
 @REM %2 material
 :build
-    if exist materials\%2\data\%1 (
-        %MBT% %MBT_ARGS% --output build\%1 --data %DATA_DIR%\%1\%2 materials\%2
+    if exist materials\%2\data\%1\%2.json (
+        %MBT% %MBT_ARGS% --output build\%1 --data materials\%2\data\%1\%2.json materials\%2
     ) else (
         if exist %DATA_DIR%\%1 (
             %MBT% %MBT_ARGS% --output build\%1 --data %DATA_DIR%\%1\%2 materials\%2
         ) else (
-            @REM if %ALL_PLATFORM%==0 (
-            @REM     echo No data found for material %2 on platform %1
-            @REM )
             echo No data found for material %2 on platform %1
         )
     )
