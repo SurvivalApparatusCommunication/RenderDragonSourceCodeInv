@@ -3,6 +3,8 @@ $input v_projPosition, v_texcoord0
 #include <bgfx_shader.sh>
 #include <bgfx_compute.sh>
 
+#if !defined(FALLBACK) && (BGFX_SHADER_LANGUAGE_GLSL >= 310 || BGFX_SHADER_LANGUAGE_HLSL >= 500 || BGFX_SHADER_LANGUAGE_PSSL || BGFX_SHADER_LANGUAGE_SPIRV || BGFX_SHADER_LANGUAGE_METAL)
+
 struct Light {
     vec4 position;
     vec4 color;
@@ -492,10 +494,10 @@ float GetFilteredShadow(ShadowParameters params, int cascadeIndex, float projZ, 
             vec2 offset = vec2(x, y) * params.shadowParams.x;
             switch (cascadeIndex) {
                 case 0:
-                    amt += shadow2DArray(s_ShadowCascades0, vec4((uv + offset) * params.cascadeShadowResolutions[cascade], float(cascade), projZ)).x;
+                    amt += shadow2DArray(s_ShadowCascades0, vec4((uv + offset) * params.cascadeShadowResolutions[cascade], float(cascade), projZ));
                     break;
                 case 1:
-                    amt += shadow2DArray(s_ShadowCascades1, vec4((uv + offset) * params.cascadeShadowResolutions[cascade], float(cascade), projZ)).x;
+                    amt += shadow2DArray(s_ShadowCascades1, vec4((uv + offset) * params.cascadeShadowResolutions[cascade], float(cascade), projZ));
                     break;
                 default:
                     return 1.0;
@@ -1212,6 +1214,8 @@ vec4 DeferredLighting(vec3 projPosition, vec2 texcoord0) {
     PBRFragmentInfo fragmentInfo = getPBRFragmentInfo(projPosition, texcoord0);
     return evaluateFragmentColor(fragmentInfo);
 }
+
+#endif
 
 void main() {
 #if !defined(FALLBACK) && (BGFX_SHADER_LANGUAGE_GLSL >= 310 || BGFX_SHADER_LANGUAGE_HLSL >= 500 || BGFX_SHADER_LANGUAGE_PSSL || BGFX_SHADER_LANGUAGE_SPIRV || BGFX_SHADER_LANGUAGE_METAL)
