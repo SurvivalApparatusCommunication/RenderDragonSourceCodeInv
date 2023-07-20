@@ -6,154 +6,115 @@ uniform vec4 BloomParams1;
 uniform vec4 BloomParams2;
 
 SAMPLER2D(s_HDRi, 0);
-SAMPLER2D(s_DepthTexture, 1);
-SAMPLER2D(s_BlurPyramidTexture, 2);
-SAMPLER2D(s_RasterColor, 3);
+SAMPLER2D(s_BlurPyramidTexture, 1);
+SAMPLER2D(s_RasterColor, 2);
+SAMPLER2D(s_DepthTexture, 3);
 
-vec4 BloomHighPass(vec2 texcoord) {
-    vec2 _499 = vec2(1.5 * abs(dFdx(texcoord.x)), 1.5 * abs(dFdy(-texcoord.y)));
+float luminance(vec3 clr) {
+    return dot(clr, vec3(0.2126, 0.7152, 0.0722));
+}
 
-    vec4 _660 = texture2D(s_HDRi, texcoord);
-    float _684 = dot(_660.xyz, vec3(0.2125999927520751953125, 0.715200006961822509765625, 0.072200000286102294921875));
+vec4 HighPass(vec4 col, float threshold) {
+    float lum = luminance(col.rgb);
+    col.rgb *= step(threshold, lum);
+    return vec4(col.rgb, lum);
+}
 
-    vec4 _692 = texture2D(s_HDRi, (texcoord + vec2(_499.x, _499.y)));
-    float _716 = dot(_692.xyz, vec3(0.2125999927520751953125, 0.715200006961822509765625, 0.072200000286102294921875));
-
-    vec4 _724 = texture2D(s_HDRi, (texcoord + vec2(-_499.x, _499.y)));
-    float _748 = dot(_724.xyz, vec3(0.2125999927520751953125, 0.715200006961822509765625, 0.072200000286102294921875));
-
-    vec4 _756 = texture2D(s_HDRi, (texcoord + vec2(_499.x, -_499.y)));
-    float _780 = dot(_756.xyz, vec3(0.2125999927520751953125, 0.715200006961822509765625, 0.072200000286102294921875));
-
-    vec4 _788 = texture2D(s_HDRi, (texcoord + vec2(-_499.x, -_499.y)));
-    float _812 = dot(_788.xyz, vec3(0.2125999927520751953125, 0.715200006961822509765625, 0.072200000286102294921875));
-
-    vec4 _619 = ((((vec4(_660.xyz * step(BloomParams1.y, _684), _684) * 0.5) + (vec4(_692.xyz * step(BloomParams1.y, _716), _716) * 0.125)) + (vec4(_724.xyz * step(BloomParams1.y, _748), _748) * 0.125)) + (vec4(_756.xyz * step(BloomParams1.y, _780), _780) * 0.125)) + (vec4(_788.xyz * step(BloomParams1.y, _812), _812) * 0.125);
-    
-    vec4 _862;
-    if (BloomParams2.z != 0.0) {
-        _862 = _619 * pow(clamp(((texture2D(s_DepthTexture, texcoord).x * BloomParams2.y) - BloomParams2.x) / (BloomParams2.y - BloomParams2.x), BloomParams1.w, 1.0), BloomParams1.z);
-    } else {
-        _862 = _619;
+vec4 HighPassDFDownsample(sampler2D srcImg, sampler2D depthImg, vec2 uv, vec2 pixelOffsets, float brightnessThreshold) {
+    vec4 col = vec4(0, 0, 0, 0);
+    col += 0.5 * HighPass(texture2D(srcImg, uv), brightnessThreshold);
+    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(pixelOffsets.x, pixelOffsets.y)), brightnessThreshold);
+    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(-pixelOffsets.x, pixelOffsets.y)), brightnessThreshold);
+    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(pixelOffsets.x, -pixelOffsets.y)), brightnessThreshold);
+    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(-pixelOffsets.x, -pixelOffsets.y)), brightnessThreshold);
+    if (bool(BloomParams2.z)) {
+        float minRange = BloomParams2.x;
+        float maxRange = BloomParams2.y;
+        float depth = texture2D(depthImg, uv).r;
+        depth = ((depth * maxRange) - minRange) / (maxRange - minRange);
+        depth = clamp(depth, BloomParams1.w, 1.0);
+        col *= pow(depth, BloomParams1.z);
     }
-    
-    return _862;
+    return col;
 }
 
-vec4 DFDownSample(vec2 texcoord) {
-    vec2 _386 = vec2(1.5 * abs(dFdx(texcoord.x)), 1.5 * abs(dFdy(-texcoord.y)));
-    return (
-            (
-                (
-                    (texture2D(s_BlurPyramidTexture, texcoord) * 0.5) 
-                    + 
-                    (texture2D(s_BlurPyramidTexture, (texcoord + vec2(_386.x, _386.y))) * 0.125)
-                ) 
-                + 
-                (texture2D(s_BlurPyramidTexture, (texcoord + vec2(-_386.x, _386.y))) * 0.125)
-            ) 
-            + 
-            (texture2D(s_BlurPyramidTexture, (texcoord + vec2(_386.x, -_386.y))) * 0.125)
-        ) 
-        + 
-        (texture2D(s_BlurPyramidTexture, (texcoord + vec2(-_386.x, -_386.y))) * 0.125);
+vec4 DualFilterDownsample(sampler2D srcImg, vec2 uv, vec2 pixelOffsets) {
+    vec4 col = vec4(0, 0, 0, 0);
+    col += 0.5 * texture2D(srcImg, uv);
+    col += 0.125 * texture2D(srcImg, uv + vec2(pixelOffsets.x, pixelOffsets.y));
+    col += 0.125 * texture2D(srcImg, uv + vec2(-pixelOffsets.x, pixelOffsets.y));
+    col += 0.125 * texture2D(srcImg, uv + vec2(pixelOffsets.x, -pixelOffsets.y));
+    col += 0.125 * texture2D(srcImg, uv + vec2(-pixelOffsets.x, -pixelOffsets.y));
+    return col;
 }
 
-vec4 DFDownSampleWithDepthErosion(vec2 texcoord) {
-    vec2 _433 = vec2(1.5 * abs(dFdx(texcoord.x)), 1.5 * abs(dFdy(-texcoord.y)));
-
-    vec4 _577 = texture2D(s_BlurPyramidTexture, texcoord);
-    vec4 _455 = _577;
-
-    vec4 _585 = texture2D(s_BlurPyramidTexture, (texcoord + vec2(_433.x, _433.y)));
-    vec4 _458 = _585;
-
-    vec4 _593 = texture2D(s_BlurPyramidTexture, (texcoord + vec2(-_433.x, _433.y)));
-    vec4 _461 = _593;
-
-    vec4 _601 = texture2D(s_BlurPyramidTexture, (texcoord + vec2(_433.x, -_433.y)));
-    vec4 _464 = _601;
-
-    vec4 _609 = texture2D(s_BlurPyramidTexture, (texcoord + vec2(-_433.x, -_433.y)));
-    vec4 _467 = _609;
-
-    vec3 _551 = ((((_577.xyz * 0.5).xyz + (_585.xyz * 0.125)).xyz + (_593.xyz * 0.125)).xyz + (_601.xyz * 0.125)).xyz + (_609.xyz * 0.125);
-    vec4 _454 = vec4(_551.x, _551.y, _551.z, 0.0);
-    _454.w = max(_455.w, max(_458.w, max(_461.w, max(_464.w, _467.w))));
-    return _454;
+vec4 DualFilterDownsampleWithDepthErosion(sampler2D srcImg, vec2 uv, vec2 pixelOffsets) {
+    vec4 col = vec4(0, 0, 0, 0);
+    vec4 a = texture2D(srcImg, uv);
+    vec4 b = texture2D(srcImg, uv + vec2(pixelOffsets.x, pixelOffsets.y));
+    vec4 c = texture2D(srcImg, uv + vec2(-pixelOffsets.x, pixelOffsets.y));
+    vec4 d = texture2D(srcImg, uv + vec2(pixelOffsets.x, -pixelOffsets.y));
+    vec4 e = texture2D(srcImg, uv + vec2(-pixelOffsets.x, -pixelOffsets.y));
+    col.rgb += 0.5 * a.rgb;
+    col.rgb += 0.125 * b.rgb;
+    col.rgb += 0.125 * c.rgb;
+    col.rgb += 0.125 * d.rgb;
+    col.rgb += 0.125 * e.rgb;
+    col.a = max(a.a, max(b.a, max(c.a, max(d.a, e.a))));
+    return col;
 }
 
-vec4 DFUpSample(vec2 texcoord) {
-    vec2 _444 = vec2(4.0 * abs(dFdx(texcoord.x)), 4.0 * abs(dFdy(-texcoord.y)));
-    return (
-            (
-                (
-                    (
-                        (
-                            (
-                                (texture2D(s_BlurPyramidTexture, (texcoord + vec2(0.5 * _444.x, 0.5 * _444.y))) * 0.16599999368190765380859375) 
-                                + 
-                                (texture2D(s_BlurPyramidTexture, (texcoord + vec2((-0.5) * _444.x, 0.5 * _444.y))) * 0.16599999368190765380859375)
-                            ) 
-                            + 
-                            (texture2D(s_BlurPyramidTexture, (texcoord + vec2(0.5 * _444.x, (-0.5) * _444.y))) * 0.16599999368190765380859375)
-                        ) 
-                        + 
-                        (texture2D(s_BlurPyramidTexture, (texcoord + vec2((-0.5) * _444.x, (-0.5) * _444.y))) * 0.16599999368190765380859375)
-                    ) 
-                    + 
-                    (texture2D(s_BlurPyramidTexture, (texcoord + vec2(_444.x, _444.y))) * 0.082999996840953826904296875)
-                ) 
-                + 
-                (texture2D(s_BlurPyramidTexture, (texcoord + vec2(-_444.x, _444.y))) * 0.082999996840953826904296875)
-            ) 
-            + 
-            (texture2D(s_BlurPyramidTexture, (texcoord + vec2(_444.x, -_444.y))) * 0.082999996840953826904296875)
-        ) 
-        + 
-        (texture2D(s_BlurPyramidTexture, (texcoord + vec2(-_444.x, -_444.y))) * 0.082999996840953826904296875);
+vec4 DualFilterUpsample(sampler2D srcImg, vec2 uv, vec2 pixelOffsets) {
+    vec4 col = vec4(0, 0, 0, 0);
+    col += 0.166 * texture2D(srcImg, uv + vec2(0.5 * pixelOffsets.x, 0.5 * pixelOffsets.y));
+    col += 0.166 * texture2D(srcImg, uv + vec2(-0.5 * pixelOffsets.x, 0.5 * pixelOffsets.y));
+    col += 0.166 * texture2D(srcImg, uv + vec2(0.5 * pixelOffsets.x, -0.5 * pixelOffsets.y));
+    col += 0.166 * texture2D(srcImg, uv + vec2(-0.5 * pixelOffsets.x, -0.5 * pixelOffsets.y));
+    col += 0.083 * texture2D(srcImg, uv + vec2(pixelOffsets.x, pixelOffsets.y));
+    col += 0.083 * texture2D(srcImg, uv + vec2(-pixelOffsets.x, pixelOffsets.y));
+    col += 0.083 * texture2D(srcImg, uv + vec2(pixelOffsets.x, -pixelOffsets.y));
+    col += 0.083 * texture2D(srcImg, uv + vec2(-pixelOffsets.x, -pixelOffsets.y));
+    return col;
 }
 
-vec4 BloomBlend(vec2 texcoord) {
-    vec2 _471 = vec2(4.0 * abs(dFdx(texcoord.x)), 4.0 * abs(dFdy(-texcoord.y)));
+vec4 BloomHighPass(vec2 texcoord0) {
+    float xOffset = 1.5 * abs(dFdx(texcoord0.x));
+    float yOffset = 1.5 * abs(dFdy(texcoord0.y));
+    vec2 uv = texcoord0;
+    float threshold = BloomParams1.y;
+    return HighPassDFDownsample(s_HDRi, s_DepthTexture, uv, vec2(xOffset, yOffset), threshold);
+}
 
-    return vec4(
-            texture2D(s_HDRi, texcoord).xyz 
-            + 
-            (
-                (
-                    (
-                        (
-                            (
-                                (
-                                    (
-                                        (
-                                            (texture2D(s_BlurPyramidTexture, (texcoord + vec2(0.5 * _471.x, 0.5 * _471.y))) * 0.16599999368190765380859375) 
-                                            + 
-                                            (texture2D(s_BlurPyramidTexture, (texcoord + vec2((-0.5) * _471.x, 0.5 * _471.y))) * 0.16599999368190765380859375)
-                                        ) 
-                                        + 
-                                        (texture2D(s_BlurPyramidTexture, (texcoord + vec2(0.5 * _471.x, (-0.5) * _471.y))) * 0.16599999368190765380859375)
-                                    ) 
-                                    + 
-                                    (texture2D(s_BlurPyramidTexture, (texcoord + vec2((-0.5) * _471.x, (-0.5) * _471.y))) * 0.16599999368190765380859375)
-                                ) 
-                                + 
-                                (texture2D(s_BlurPyramidTexture, (texcoord + vec2(_471.x, _471.y))) * 0.082999996840953826904296875)
-                            ) 
-                            + 
-                            (texture2D(s_BlurPyramidTexture, (texcoord + vec2(-_471.x, _471.y))) * 0.082999996840953826904296875)
-                        ) 
-                        + 
-                        (texture2D(s_BlurPyramidTexture, (texcoord + vec2(_471.x, -_471.y))) * 0.082999996840953826904296875)
-                    ) 
-                    + 
-                    (texture2D(s_BlurPyramidTexture, (texcoord + vec2(-_471.x, -_471.y))) * 0.082999996840953826904296875)
-                ).xyz 
-                * 
-                BloomParams1.x
-            )
-        , 1.0);
+vec4 DFDownSample(vec2 texcoord0) {
+    float xOffset = 1.5 * abs(dFdx(texcoord0.x));
+    float yOffset = 1.5 * abs(dFdy(texcoord0.y));
+    vec2 uv = texcoord0;
+    return DualFilterDownsample(s_BlurPyramidTexture, uv, vec2(xOffset, yOffset));
+}
+
+vec4 DFDownSampleWithDepthErosion(vec2 texcoord0) {
+    float xOffset = 1.5 * abs(dFdx(texcoord0.x));
+    float yOffset = 1.5 * abs(dFdy(texcoord0.y));
+    vec2 uv = texcoord0;
+    return DualFilterDownsampleWithDepthErosion(s_BlurPyramidTexture, uv, vec2(xOffset, yOffset));
+}
+
+vec4 DFUpSample(vec2 texcoord0) {
+    float xOffset = 4.0 * abs(dFdx(texcoord0.x));
+    float yOffset = 4.0 * abs(dFdy(texcoord0.y));
+    vec2 uv = texcoord0;
+    return DualFilterUpsample(s_BlurPyramidTexture, uv, vec2(xOffset, yOffset));
+}
+
+vec4 BloomBlend(vec2 texcoord0) {
+    float xOffset = 4.0 * abs(dFdx(texcoord0.x));
+    float yOffset = 4.0 * abs(dFdy(texcoord0.y));
+    vec2 uv = texcoord0;
+    vec4 bloom = DualFilterUpsample(s_BlurPyramidTexture, uv, vec2(xOffset, yOffset));
+    vec3 baseColor = texture2D(s_HDRi, uv).rgb;
+    float intensity = BloomParams1.x;
+    vec3 bloomedColor = baseColor + (intensity * bloom.rgb);
+    return vec4(bloomedColor, 1.0);
 }
 
 void main() {

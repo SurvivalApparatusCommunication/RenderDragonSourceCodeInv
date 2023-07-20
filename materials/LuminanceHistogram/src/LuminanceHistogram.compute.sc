@@ -9,66 +9,102 @@ uniform vec4 AdaptiveParameters;
 uniform vec4 DeltaTime;
 uniform vec4 ScreenSize;
 uniform vec4 LogLuminanceRange;
+uniform vec4 EnableCustomWeight;
 
 SAMPLER2D(s_GameColor, 0);
-BUFFER_WR(s_CurFrameLuminanceHistogram, Histogram, 1);
-IMAGE2D_WR(s_AdaptedFrameAverageLuminance, r32f, 2);
+SAMPLER2D(s_CustomWeight, 4);
+BUFFER_RW(s_CurFrameLuminanceHistogram, Histogram, 1);
+IMAGE2D_RW(s_AdaptedFrameAverageLuminance, r32f, 2);
+IMAGE2D_RW(s_MaxFrameLuminance, r32f, 3);
 
 SHARED uint curFrameLuminanceHistogramShared[256];
 
-void BuildHistogram(uint localInvocationIndex, uvec3 globalInvocationID) {
-    curFrameLuminanceHistogramShared[localInvocationIndex] = 0;
-    barrier();
-
-    if (globalInvocationID.x < ScreenSize.x && globalInvocationID.y < ScreenSize.y) {
-        float _292 = dot(texture2DLod(s_GameColor, (globalInvocationID.xy / ScreenSize.xy), 0.0).xyz, vec3(0.2125999927520751953125, 0.715200006961822509765625, 0.072200000286102294921875));
-        uint _345;
-        if (_292 < 0.004999999888241291046142578125) {
-            _345 = 0;
-        } else {
-            _345 = uint((clamp((log2(_292) - MinLogLuminance.x) / LogLuminanceRange.x, 0.0, 1.0) * 254.0) + 1.0);
-        }
-        uint _297;
-        atomicFetchAndAdd(curFrameLuminanceHistogramShared[_345], 1, _297);
+uint luminanceToHistogramBin(float luminance) {
+    if (luminance < 0.00095f) {
+        return 0u;
     }
-    barrier();
-
-    uint _303;
-    atomicFetchAndAdd(s_CurFrameLuminanceHistogram[localInvocationIndex].count, curFrameLuminanceHistogramShared[localInvocationIndex], _303);
+    float logLuminance = clamp((log2(luminance) - MinLogLuminance.x) * 1.0f / LogLuminanceRange.x, 0.0f, 1.0f);
+    return uint(logLuminance * 254.0 + 1.0);
 }
 
-void CalculateAverage(uint localInvocationIndex) {
-    uint count = s_CurFrameLuminanceHistogram[localInvocationIndex].count;
-    curFrameLuminanceHistogramShared[localInvocationIndex] = count * localInvocationIndex;
+void Build(uint LocalInvocationIndex, uvec3 GlobalInvocationID) {
+    uint x = GlobalInvocationID.x;
+    uint y = GlobalInvocationID.y;
+    curFrameLuminanceHistogramShared[LocalInvocationIndex] = 0u;
     barrier();
+    if (x < uint(ScreenSize.x) && y < uint(ScreenSize.y)) {
+        ivec2 pixel = ivec2(x, y);
+        vec2 uv = vec2(pixel) / ScreenSize.xy;
+        vec3 color = texture2DLod(s_GameColor, uv, 0.0f).rgb;
+        float luminance = dot(color.rgb, vec3(0.2126f, 0.7152f, 0.0722f));
+        uint index = luminanceToHistogramBin(luminance);
+        atomicAdd(curFrameLuminanceHistogramShared[index], 1u);
+    }
+    barrier();
+    atomicAdd(s_CurFrameLuminanceHistogram[LocalInvocationIndex].count, curFrameLuminanceHistogramShared[LocalInvocationIndex]);
+}
 
-    for (uint _383 = 128; _383 > 0; _383 >>= 1) {
-        if (localInvocationIndex < _383) {
-            curFrameLuminanceHistogramShared[localInvocationIndex] += curFrameLuminanceHistogramShared[localInvocationIndex + _383];
+void Average(uint LocalInvocationIndex) {
+    uint histogramCount = s_CurFrameLuminanceHistogram[LocalInvocationIndex].count;
+    if (EnableCustomWeight.x != 0.0) {
+        vec2 uv = vec2((float(LocalInvocationIndex) + 0.5f) / float(256), 0.5f);
+        curFrameLuminanceHistogramShared[LocalInvocationIndex] = float(histogramCount) * texture2DLod(s_CustomWeight, uv, 0.0f).r;
+    } else {
+        curFrameLuminanceHistogramShared[LocalInvocationIndex] = float(histogramCount) * float(LocalInvocationIndex);
+    }
+    barrier();
+    for (uint cutoff = uint(256 >> 1); cutoff > 0u;) {
+        if (uint(LocalInvocationIndex) < cutoff) {
+            curFrameLuminanceHistogramShared[LocalInvocationIndex] = curFrameLuminanceHistogramShared[LocalInvocationIndex] + curFrameLuminanceHistogramShared[LocalInvocationIndex + cutoff];
         }
         barrier();
+        cutoff = (cutoff >> 1u);
     }
-
-    if (localInvocationIndex == 0) {
-        float _328 = exp2(((((float(curFrameLuminanceHistogramShared[0]) / max((ScreenSize.x * ScreenSize.y) - float(count), 1.0)) - 1.0) * 0.00393700785934925079345703125) * LogLuminanceRange.x) + MinLogLuminance.x);
-        float _368 = imageLoad(s_AdaptedFrameAverageLuminance, ivec2(0, 0));
-        float _269 = (_368 + ((_328 - _368) * (1.0 - exp(((-DeltaTime.x) * AdaptiveParameters.x) * ((_368 < _328) ? AdaptiveParameters.y : (1.0 / AdaptiveParameters.z))))));
-        imageStore(s_AdaptedFrameAverageLuminance, ivec2(0, 0), _269);
+    if (LocalInvocationIndex == 0u) {
+        float weightedLogAverage = (curFrameLuminanceHistogramShared[0] / max(ScreenSize.x * ScreenSize.y - float(histogramCount), 1.0f)) - 1.0f;
+        if (weightedLogAverage < 1.f) {
+            weightedLogAverage = 0.0f;
+        }
+        float weightedAverageLuminance = exp2(((weightedLogAverage * LogLuminanceRange.x) / 254.0f) + MinLogLuminance.x);
+        float prevLuminance = imageLoad(s_AdaptedFrameAverageLuminance, ivec2(0, 0)).r;
+        bool isBrighter = (prevLuminance < weightedAverageLuminance);
+        float speedParam = isBrighter ? AdaptiveParameters.y : AdaptiveParameters.z;
+        float adaptedLuminance = prevLuminance + (weightedAverageLuminance - prevLuminance) * (1.0f - exp(-DeltaTime.x * AdaptiveParameters.x * speedParam));
+        if (isBrighter) {
+            adaptedLuminance = adaptedLuminance > weightedAverageLuminance ? weightedAverageLuminance : adaptedLuminance;
+        } else {
+            adaptedLuminance = adaptedLuminance > weightedAverageLuminance ? adaptedLuminance : weightedAverageLuminance;
+        }
+        imageStore(s_AdaptedFrameAverageLuminance, ivec2(0, 0), vec4(adaptedLuminance, adaptedLuminance, adaptedLuminance, adaptedLuminance));
+        int maxLuminanceBin = 0;
+        for (int i = 256 - 1; i > 0; i--) {
+            if (float(s_CurFrameLuminanceHistogram[i].count) >= AdaptiveParameters.w) {
+                maxLuminanceBin = i;
+                break;
+            }
+        }
+        vec2 uv = vec2((float(maxLuminanceBin) + 0.5f) / float(256), 0.5f);
+        float maxLuminance = 0.0f;
+        if (EnableCustomWeight.x != 0.0) {
+            maxLuminance = exp2(((texture2DLod(s_CustomWeight, uv, 0.0f).r - 1.0f) * LogLuminanceRange.x) / 254.0f + MinLogLuminance.x);
+        } else {
+            maxLuminance = exp2(((float(maxLuminanceBin) - 1.0f) * LogLuminanceRange.x) / 254.0f + MinLogLuminance.x);
+        }
+        imageStore(s_MaxFrameLuminance, ivec2(0, 0), vec4(maxLuminance, maxLuminance, maxLuminance, maxLuminance));
     }
 }
 
-void CleanUp(uint localInvocationIndex) {
-    s_CurFrameLuminanceHistogram[localInvocationIndex].count = 0;
+void Clean(uint LocalInvocationIndex) {
+    s_CurFrameLuminanceHistogram[LocalInvocationIndex].count = 0u;
 }
 
-
-NUM_THREADS(1, 1, 1)
+NUM_THREADS(16, 16, 1)
 void main() {
 #if BUILD_HISTOGRAM
-    BuildHistogram(gl_LocalInvocationIndex, gl_GlobalInvocationID);
+    Build(gl_LocalInvocationIndex, gl_GlobalInvocationID);
 #elif CALCULATE_AVERAGE
-    CalculateAverage(gl_LocalInvocationIndex);
+    Average(gl_LocalInvocationIndex);
 #elif CLEAN_UP
-    CleanUp(gl_LocalInvocationIndex);
+    Clean(gl_LocalInvocationIndex);
 #endif
 }

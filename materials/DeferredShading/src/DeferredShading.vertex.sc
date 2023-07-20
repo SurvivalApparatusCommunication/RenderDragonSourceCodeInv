@@ -4,9 +4,15 @@ $output v_projPosition, v_texcoord0
 #include <bgfx_shader.sh>
 
 void main() {
-    vec2 pos = (a_position.xy * 2.0) - 1.0;
+    vec4 position = vec4(a_position, 1.0);
+    position.xy = position.xy * 2.0 - 1.0;
 
-    gl_Position = vec4(pos, a_position.z, 1.0);
-    v_projPosition = vec3(pos, a_position.z);
-    v_texcoord0 = a_texcoord0;
+    vec3 projPosition = a_position.xyz;
+    projPosition.xy = projPosition.xy * 2.0 - 1.0;
+    
+    vec2 texcoord0 = a_texcoord0;
+
+    v_projPosition = projPosition;
+    v_texcoord0 = texcoord0;
+    gl_Position = position;
 }
