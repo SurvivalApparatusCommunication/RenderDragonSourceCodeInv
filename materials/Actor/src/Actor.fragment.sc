@@ -1,5 +1,3 @@
-//Not yet completed, may have some issues
-
 $input v_color0, v_fog, v_light, v_texcoord0
 
 #include <bgfx_shader.sh>
