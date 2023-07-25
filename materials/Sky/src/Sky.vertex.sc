@@ -2,7 +2,7 @@ $input a_color0, a_position
 #ifdef GEOMETRY_PREPASS
     $input a_texcoord0
     #ifdef INSTANCING
-        $input i_data0, i_data1, i_data2, i_data3
+        $input i_data0, i_data1, i_data2
     #endif
 #endif
 
@@ -25,7 +25,7 @@ void main() {
     //GeometryPrepass
     mat4 model;
     #ifdef INSTANCING
-        model = mtxFromCols(i_data0, i_data1, i_data2, i_data3);
+        model = mtxFromCols(i_data0, i_data1, i_data2, vec4(0, 0, 0, 1));
     #else
         model = u_model[0];
     #endif
