@@ -29,146 +29,210 @@ uniform vec4 LightWorldSpaceDirection;
 uniform vec4 GlobalRoughness;
 uniform vec4 FogColor;
 uniform vec4 FogAndDistanceControl;
-uniform vec4 LightDiffuseColorAndIntensity;
+uniform vec4 LightDiffuseColorAndIlluminance;
 uniform vec4 ViewPositionAndTime;
 uniform vec4 RenderChunkFogAlpha;
-uniform vec4 BlockSkyAmbientContribution;
 
 SAMPLER2D(s_MatTexture, 0);
 SAMPLER2D(s_SeasonsTexture, 1);
 SAMPLER2D(s_LightMapTexture, 2);
 BUFFER_RO(s_PBRData, PBRTextureData, 3);
 
-CONST(int) kPBRTextureDataFlagHasMaterialTexture  = (1 << 0);
-// These two are mutually exclusive
-CONST(int) kPBRTextureDataFlagHasNormalTexture    = (1 << 1);
-CONST(int) kPBRTextureDataFlagHasHeightMapTexture = (1 << 2);
+vec2 octWrap(vec2 v) {
+    return (1.0 - abs(v.yx)) * ((2.0 * step(0.0, v)) - 1.0);
+}
+
+vec2 ndirToOctSnorm(vec3 n) {
+    vec2 p = n.xy * (1.0 / (abs(n.x) + abs(n.y) + abs(n.z)));
+    p = (n.z < 0.0) ? octWrap(p) : p;
+    return p;
+}
+
+vec2 ndirToOctUnorm(vec3 n) {
+    vec2 p = ndirToOctSnorm(n);
+    return p * 0.5f + 0.5f;
+}
+
+vec3 octToNdirSnorm(vec2 p) {
+    vec3 n = vec3(p.xy, 1.0 - abs(p.x) - abs(p.y));
+    n.xy = (n.z < 0.0) ? octWrap(n.xy) : n.xy;
+    return normalize(n);
+}
+
+vec3 octToNdirUnorm(vec2 p) {
+    vec2 pSnorm = p * 2.0f - 1.0f;
+    return octToNdirSnorm(pSnorm);
+}
+
+float saturatedLinearRemapZeroToOne(float value, float zeroValue, float oneValue) {
+    return saturate((((value) * (1.f / (oneValue - zeroValue))) + -zeroValue / (oneValue - zeroValue)));
+}
+
+vec3 calculateTangentNormalFromHeightmap(sampler2D heightmapTexture, vec2 heightmapUV, float mipLevel) {
+    vec3 tangentNormal = vec3(0.f, 0.f, 1.f);
+    const float kHeightMapPixelEdgeWidth = 1.0f / 12.0f;
+    const float kHeightMapDepth = 4.0f;
+    const float kRecipHeightMapDepth = 1.0f / kHeightMapDepth;
+    float fadeForLowerMips = saturatedLinearRemapZeroToOne(mipLevel, 2.f, 1.f);
+    if (fadeForLowerMips > 0.f) {
+        vec2 widthHeight = vec2(textureSize(heightmapTexture, 0));
+        vec2 pixelCoord = heightmapUV * widthHeight;
+        {
+            const float kNudgePixelCentreDistEpsilon = 0.0625f;
+            const float kNudgeUvEpsilon = 0.25f / 65536.f;
+            vec2 nudgeSampleCoord = fract(pixelCoord);
+            if (abs(nudgeSampleCoord.x - 0.5) < kNudgePixelCentreDistEpsilon) {
+                heightmapUV.x += (nudgeSampleCoord.x > 0.5f) ? kNudgeUvEpsilon : -kNudgeUvEpsilon;
+            }
+            if (abs(nudgeSampleCoord.y - 0.5) < kNudgePixelCentreDistEpsilon) {
+                heightmapUV.y += (nudgeSampleCoord.y > 0.5f) ? kNudgeUvEpsilon : -kNudgeUvEpsilon;
+            }
+        }
+        vec4 heightSamples = textureGather(heightmapTexture, heightmapUV, 0);
+        vec2 subPixelCoord = fract(pixelCoord + 0.5f);
+        const float kBevelMode = 0.0f;
+        vec2 axisSamplePair = (subPixelCoord.y > 0.5f) ? heightSamples.xy : heightSamples.wz;
+        float axisBevelCentreSampleCoord = subPixelCoord.x;
+        axisBevelCentreSampleCoord += ((axisSamplePair.x > axisSamplePair.y) ? kHeightMapPixelEdgeWidth : -kHeightMapPixelEdgeWidth) * kBevelMode;
+        ivec2 axisSampleIndices = ivec2(saturate(vec2(axisBevelCentreSampleCoord - kHeightMapPixelEdgeWidth, axisBevelCentreSampleCoord + kHeightMapPixelEdgeWidth) * 2.f));
+        tangentNormal.x = (axisSamplePair[axisSampleIndices.x] - axisSamplePair[axisSampleIndices.y]);
+        axisSamplePair = (subPixelCoord.x > 0.5f) ? heightSamples.zy : heightSamples.wx;
+        axisBevelCentreSampleCoord = subPixelCoord.y;
+        axisBevelCentreSampleCoord += ((axisSamplePair.x > axisSamplePair.y) ? kHeightMapPixelEdgeWidth : -kHeightMapPixelEdgeWidth) * kBevelMode;
+        axisSampleIndices = ivec2(saturate(vec2(axisBevelCentreSampleCoord - kHeightMapPixelEdgeWidth, axisBevelCentreSampleCoord + kHeightMapPixelEdgeWidth) * 2.f));
+        tangentNormal.y = (axisSamplePair[axisSampleIndices.x] - axisSamplePair[axisSampleIndices.y]);
+        tangentNormal.z = kRecipHeightMapDepth;
+        tangentNormal = normalize(tangentNormal);
+        tangentNormal.xy *= fadeForLowerMips;
+    }
+    return tangentNormal;
+}
+
+vec2 getPBRDataUV(vec2 surfaceUV, vec2 uvScale, vec2 uvBias) {
+    return (((surfaceUV) * (uvScale)) + uvBias);
+}
+
+vec4 applySeasons(vec3 vertexColor, float vertexAlpha, vec4 diffuse) {
+    vec2 uv = vertexColor.xy;
+    diffuse.rgb *= mix(vec3(1.0, 1.0, 1.0), texture2D(s_SeasonsTexture, uv).rgb * 2.0, vertexColor.b);
+    diffuse.rgb *= vec3_splat(vertexAlpha);
+    diffuse.a = 1.0;
+    return diffuse;
+}
+
+float lumaPerceptual(vec3 color) {
+    vec3 perceptualLuminance = vec3(0.299, 0.587, 0.114);
+    return dot(perceptualLuminance, color);
+}
 
 void main() {
-    vec4 albedo = texture2D(s_MatTexture, v_texcoord0);
+    vec4 diffuse = texture2D(s_MatTexture, v_texcoord0);
 
 #if defined(ALPHA_TEST) || defined(GEOMETRY_PREPASS_ALPHA_TEST) || defined(DEPTH_ONLY)
-    if (albedo.a < 0.5) {
+    const float ALPHA_THRESHOLD = 0.5;
+    if (diffuse.a < ALPHA_THRESHOLD) {
         discard;
     }
 #endif
 
 #if defined(SEASONS) && !defined(TRANSPARENT) && !defined(TRANSPARENT_PBR)
-    albedo.rgb *= mix(vec3(1.0, 1.0, 1.0), texture2D(s_SeasonsTexture, v_color0.xy).rgb * 2.0, v_color0.b);
-    albedo.rgb *= v_color0.a;
-    albedo.a = 1.0;
+    diffuse = applySeasons(v_color0.rgb, v_color0.a, diffuse);
 #else
-    albedo.rgb *= v_color0.rgb;
-    albedo.a *= v_color0.a;
+    diffuse.rgb *= v_color0.rgb;
+    diffuse.a *= v_color0.a;
 #endif
 
 #if (defined(GEOMETRY_PREPASS) || defined(GEOMETRY_PREPASS_ALPHA_TEST)) && (BGFX_SHADER_LANGUAGE_GLSL >= 310 || BGFX_SHADER_LANGUAGE_HLSL >= 500 || BGFX_SHADER_LANGUAGE_PSSL || BGFX_SHADER_LANGUAGE_SPIRV || BGFX_SHADER_LANGUAGE_METAL)
-    PBRTextureData pbrData = s_PBRData[v_pbrTextureId];
-    vec2 colourToMaterialUvScale = vec2(pbrData.colourToMaterialUvScale0, pbrData.colourToMaterialUvScale1);
-    vec2 colourToMaterialUvBias = vec2(pbrData.colourToMaterialUvBias0, pbrData.colourToMaterialUvBias1);
-    vec2 colourToNormalUvScale = vec2(pbrData.colourToNormalUvScale0, pbrData.colourToNormalUvScale1);
-    vec2 colourToNormalUvBias = vec2(pbrData.colourToNormalUvBias0, pbrData.colourToNormalUvBias1);
+    //RenderChunkSurfGeometryPrepass
+    //applyPBRValuesToSurfaceOutput
+    PBRTextureData pbrTextureData = s_PBRData[v_pbrTextureId];
+    vec2 normalUVScale = vec2(pbrTextureData.colourToNormalUvScale0, pbrTextureData.colourToNormalUvScale1);
+    vec2 normalUVBias = vec2(pbrTextureData.colourToNormalUvBias0, pbrTextureData.colourToNormalUvBias1);
+    vec2 materialUVScale = vec2(pbrTextureData.colourToMaterialUvScale0, pbrTextureData.colourToMaterialUvScale1);
+    vec2 materialUVBias = vec2(pbrTextureData.colourToMaterialUvBias0, pbrTextureData.colourToMaterialUvBias1);
 
-    vec3 normal = vec3(0.0, 0.0, 1.0);
-    if ((pbrData.flags & kPBRTextureDataFlagHasNormalTexture) == kPBRTextureDataFlagHasNormalTexture) {
-        normal = texture2D(s_MatTexture, fma(v_texcoord0, colourToNormalUvScale, colourToNormalUvBias)).xyz * vec3(2.0, 2.0, 2.0) - vec3(1.0, 1.0, 1.0);
-    } else if ((pbrData.flags & kPBRTextureDataFlagHasHeightMapTexture) == kPBRTextureDataFlagHasHeightMapTexture) {
-        vec2 texCoord = fma(v_texcoord0, colourToNormalUvScale, colourToNormalUvBias);
-        float _2030 = clamp(fma(min(pbrData.maxMipNormal - pbrData.maxMipColour, pbrData.maxMipNormal), -1.0, 2.0), 0.0, 1.0);
-        if (_2030 > 0.0) {
-            vec2 matTextureSize = vec2(textureSize(s_MatTexture, 0));
-            vec2 _1796 = texCoord * matTextureSize;
-            vec2 _1702 = fract(_1796);
-            if (abs(_1702.x - 0.5) < 0.0625) {
-                texCoord.x += ((_1702.x > 0.5) ? 3.814697265625e-06 : (-3.814697265625e-06));
-            }
-            if (abs(_1702.y - 0.5) < 0.0625) {
-                texCoord.y += ((_1702.y > 0.5) ? 3.814697265625e-06 : (-3.814697265625e-06));
-            }
-            vec4 _2062 = textureGather(s_MatTexture, texCoord, 0);
+    int kPBRTextureDataFlagHasMaterialTexture  = (1 << 0);
+    // These two are mutually exclusive
+    int kPBRTextureDataFlagHasNormalTexture    = (1 << 1);
+    int kPBRTextureDataFlagHasHeightMapTexture = (1 << 2);
 
-            vec2 _1707 = fract(_1796 + vec2(0.5, 0.5));
-            bool b1 = _1707.y > 0.5;
-            vec2 _1708 = vec2(b1 ? _2062.x : _2062.w, 
-                              b1 ? _2062.y : _2062.z);
-            ivec2 _1710 = ivec2(clamp(vec2(_1707.x - 0.083333335, _1707.x + 0.083333335) * 2.0, vec2(0.0, 0.0), vec2(1.0, 1.0)));
-            normal.x = _1708[_1710.x] - _1708[_1710.y];
-
-            bool b2 = _1707.x > 0.5;
-            _1708 = vec2(b2 ? _2062.z : _2062.w, 
-                         b2 ? _2062.y : _2062.x);
-            _1710 = ivec2(clamp(vec2(_1707.y - 0.083333335, _1707.y + 0.083333335) * 2.0, vec2(0.0, 0.0), vec2(1.0, 1.0)));
-            normal.y = _1708[_1710.x] - _1708[_1710.y];
-
-            normal.z = 0.25;
-
-            normal = normalize(normal);
-            normal.xy *= _2030;
-        }
+    vec3 tangentNormal = vec3(0, 0, 1);
+    if ((pbrTextureData.flags & kPBRTextureDataFlagHasNormalTexture) == kPBRTextureDataFlagHasNormalTexture) {
+        vec2 uv = getPBRDataUV(v_texcoord0, normalUVScale, normalUVBias);
+        tangentNormal = texture2D(s_MatTexture, uv).xyz * 2.f - 1.f;
+    } else if ((pbrTextureData.flags & kPBRTextureDataFlagHasHeightMapTexture) == kPBRTextureDataFlagHasHeightMapTexture) {
+        vec2 normalUv = getPBRDataUV(v_texcoord0, normalUVScale, normalUVBias);
+        float normalMipLevel = min(pbrTextureData.maxMipNormal - pbrTextureData.maxMipColour, pbrTextureData.maxMipNormal);
+        tangentNormal = calculateTangentNormalFromHeightmap(s_MatTexture, normalUv, normalMipLevel);
     }
 
-    float metallic;
-    float emissive;
-    float roughness;
-    if ((pbrData.flags & kPBRTextureDataFlagHasMaterialTexture) == kPBRTextureDataFlagHasMaterialTexture) {
-        vec4 merTex = texture2D(s_MatTexture, fma(v_texcoord0, colourToMaterialUvScale, colourToMaterialUvBias));
-        metallic = merTex.x;
-        emissive = merTex.y;
-        roughness = merTex.z;
-    } else {
-        metallic = pbrData.uniformMetalness;
-        emissive = pbrData.uniformEmissive;
-        roughness = pbrData.uniformRoughness;
+    float emissive = pbrTextureData.uniformEmissive;
+    float metalness = pbrTextureData.uniformMetalness;
+    float linearRoughness = pbrTextureData.uniformRoughness;
+    if ((pbrTextureData.flags & kPBRTextureDataFlagHasMaterialTexture) == kPBRTextureDataFlagHasMaterialTexture) {
+        vec2 uv = getPBRDataUV(v_texcoord0, materialUVScale, materialUVBias);
+        vec3 texel = texture2D(s_MatTexture, uv).rgb;
+        metalness = texel.r;
+        emissive = texel.g;
+        linearRoughness = texel.b;
     }
 
-    vec3 worldPos = v_worldPos.xyz;
-    mat3 tbn = mtxFromCols(normalize(v_tangent), normalize(v_bitangent), normalize(v_normal));
-    vec3 GNormal = normalize(mul(tbn, normal));
-    float rGNormalManhattanLength = 1.0f / (abs(GNormal.x) + abs(GNormal.y) + abs(GNormal.z));
-    float NX = rGNormalManhattanLength * GNormal.x;
-    float NY = rGNormalManhattanLength * GNormal.y;
-    bool isDownFace = GNormal.z < 0.0;
+    mat3 tbn = mtxFromRows(
+        normalize(v_tangent),
+        normalize(v_bitangent),
+        normalize(v_normal));
+    tbn = transpose(tbn);
+    vec3 viewSpaceNormal = mul(tbn, tangentNormal).xyz;
 
-    vec2 lightMapCoord = min(v_lightmapUV * BlockSkyAmbientContribution.xy, vec2(1.0, 1.0));
+    //computeLighting_RenderChunk_SplitLightMapValues
+    vec2 newLightmapUV = min(v_lightmapUV.xy, vec2(1.0f, 1.0f));
+    vec3 blockLight = texture2D(s_LightMapTexture, min(vec2(newLightmapUV.x, 1.5f * 1.0f / 16.0f), vec2(1.0, 1.0))).rgb;
+    vec3 skyLight = texture2D(s_LightMapTexture, min(vec2(newLightmapUV.y, 0.5f * 1.0f / 16.0f), vec2(1.0, 1.0))).rgb;
 
-    vec4 _2247 = mul(u_viewProj, vec4(v_worldPos, 1.0));
-    vec4 _2256 = (_2247 / _2247.w) * 0.5 + 0.5;
-    vec4 _2267 = mul(u_prevViewProj, vec4(v_worldPos - u_prevWorldPosOffset.xyz, 1.0));
-    vec4 _2276 = (_2267 / _2267.w) * 0.5 + 0.5;
-    vec2 motionVector = _2256.xy - _2276.xy;
+    //RenderChunkGeometryPrepass
+    //applyPrepassSurfaceToGBuffer
+    gl_FragData[0].rgb = diffuse.rgb;
+    gl_FragData[0].a = metalness;
 
-    //ColorMetalness
-    gl_FragData[0].xyz = albedo.xyz;
-    gl_FragData[0].w = metallic;
+    vec3 viewNormal = normalize(viewSpaceNormal).xyz;
+    gl_FragData[1].xy = ndirToOctSnorm(viewNormal);
 
-    //Normal
-    gl_FragData[1].x = (isDownFace ? ((1.0f - abs(NY)) * ((NX >= 0.0f) ? 1.0f : (-1.0f))) : NX) * 0.5 + 0.5;
-    gl_FragData[1].y = (isDownFace ? ((1.0f - abs(NX)) * ((NY >= 0.0f) ? 1.0f : (-1.0f))) : NY) * 0.5 + 0.5;
+    vec3 worldPosition = v_worldPos;
+    vec3 prevWorldPosition = v_worldPos - u_prevWorldPosOffset.xyz;
 
-    //MotionVectors
-    gl_FragData[1].zw = motionVector;
+    vec4 screenSpacePos = mul(u_viewProj, vec4(worldPosition, 1.0));
+    screenSpacePos /= screenSpacePos.w;
+    screenSpacePos = screenSpacePos * 0.5 + 0.5;
 
-    //EmissiveAmbientLinearRoughness
-    gl_FragData[2].x = emissive;
-    gl_FragData[2].y = dot(vec3(0.299, 0.587, 0.114), texture2D(s_LightMapTexture, min(vec2(lightMapCoord.x, 0.09375), 1.0)).xyz);
-    gl_FragData[2].z = dot(vec3(0.299, 0.587, 0.114), texture2D(s_LightMapTexture, min(vec2(lightMapCoord.y, 0.03125), 1.0)).xyz);
-    gl_FragData[2].w = roughness;
+    vec4 prevScreenSpacePos = mul(u_prevViewProj, vec4(prevWorldPosition, 1.0));
+    prevScreenSpacePos /= prevScreenSpacePos.w;
+    prevScreenSpacePos = prevScreenSpacePos * 0.5 + 0.5;
+
+    gl_FragData[1].zw = screenSpacePos.xy - prevScreenSpacePos.xy;
+
+    gl_FragData[2] = vec4(
+        emissive, 
+        lumaPerceptual(blockLight), 
+        lumaPerceptual(skyLight), 
+        linearRoughness);
 
 #else
 
     #if defined(DEPTH_ONLY) || defined(DEPTH_ONLY_OPAQUE)
-        albedo = vec4(1.0, 1.0, 1.0, 1.0);
+        diffuse = vec4(1.0, 1.0, 1.0, 1.0);
     #endif
 
     #if defined(TRANSPARENT_PBR)
-        vec3 light1 = texture2D(s_LightMapTexture, min(vec2(v_lightmapUV.x, 0.09375), 1.0)).xyz;
-        vec3 light2 = texture2D(s_LightMapTexture, min(vec2(v_lightmapUV.y, 0.03125), 1.0)).xyz;
-        albedo.rgb *= clamp(light1 + light2, 0.0, 1.0);
+        //computeLighting_RenderChunk_Split
+        vec3 blockLight = texture2D(s_LightMapTexture, min(vec2(v_lightmapUV.x, 0.09375), 1.0)).xyz;
+        vec3 skyLight = texture2D(s_LightMapTexture, min(vec2(v_lightmapUV.y, 0.03125), 1.0)).xyz;
+        diffuse.rgb *= saturate(blockLight + skyLight);
     #endif
 
-    gl_FragData[0].rgb = mix(albedo.rgb, FogColor.rgb, v_fog.a);
-    gl_FragData[0].a = albedo.a;
+    gl_FragData[0].rgb = mix(diffuse.rgb, FogColor.rgb, v_fog.a);
+    gl_FragData[0].a = diffuse.a;
     gl_FragData[1] = vec4(0.0, 0.0, 0.0, 0.0);
     gl_FragData[2] = vec4(0.0, 0.0, 0.0, 0.0);
+
 #endif
 }
