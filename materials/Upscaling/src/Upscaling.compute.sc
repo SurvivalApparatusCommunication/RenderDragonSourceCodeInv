@@ -68,6 +68,9 @@ void TAAU(uvec3 GlobalInvocationID) {
     ivec2 intRenderPos = ivec2(round(nearestRenderPos.x), round(nearestRenderPos.y));
     vec4 currentColor = texelFetch(s_InputFinalColor, intRenderPos, 0).rgba;
     vec2 motionPixels = texelFetch(s_InputBufferMotionVectors, intRenderPos, 0).ba;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+    motionPixels.y *= -1.0;
+#endif
     vec3 c1 = currentColor.rgb;
     vec3 c2 = currentColor.rgb * currentColor.rgb;
     for (int i = -1; i <= 1; i++) {
