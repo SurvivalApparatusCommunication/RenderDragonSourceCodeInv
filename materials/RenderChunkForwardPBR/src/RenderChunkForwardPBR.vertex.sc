@@ -87,7 +87,7 @@ void main() {
     float fogIntensity = calculateFogIntensityFaded(cameraDepth, FogAndDistanceControl.z, FogAndDistanceControl.x, FogAndDistanceControl.y, RenderChunkFogAlpha.x);
     fog = vec4(FogColor.rgb, fogIntensity);
 
-    pbrTextureId = a_texcoord4 & 0xffff;
+    pbrTextureId = int(a_texcoord4) & 0xffff;
 
     vec3 n = a_normal.xyz;
     vec3 t = a_tangent.xyz;
