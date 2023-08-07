@@ -6,6 +6,8 @@ $input v_color0, v_fog, v_normal, v_tangent, v_bitangent, v_texcoord0, v_lightma
 #include <bgfx_shader.sh>
 #include <bgfx_compute.sh>
 
+#if FORWARD_PBR_TRANSPARENT
+
 struct Light {
     vec4 position;
     vec4 color;
@@ -133,8 +135,6 @@ BUFFER_RO(s_Lights, Light, 11);
 
 SAMPLER2DARRAYSHADOW(s_PointLightShadowTextureArray, 12);
 SAMPLER2DARRAY(s_ScatteringBuffer, 13);
-
-#if FORWARD_PBR_TRANSPARENT
 
 /*vec3 color_gamma(vec3 clr) {
 float e = 1.0 / 2.2;

@@ -36,6 +36,9 @@ uniform vec4 RenderChunkFogAlpha;
 SAMPLER2D(s_MatTexture, 0);
 SAMPLER2D(s_SeasonsTexture, 1);
 SAMPLER2D(s_LightMapTexture, 2);
+
+#if defined(GEOMETRY_PREPASS) || defined(GEOMETRY_PREPASS_ALPHA_TEST)
+
 BUFFER_RO(s_PBRData, PBRTextureData, 3);
 
 vec2 octWrap(vec2 v) {
@@ -112,6 +115,13 @@ vec2 getPBRDataUV(vec2 surfaceUV, vec2 uvScale, vec2 uvBias) {
     return (((surfaceUV) * (uvScale)) + uvBias);
 }
 
+float lumaPerceptual(vec3 color) {
+    vec3 perceptualLuminance = vec3(0.299, 0.587, 0.114);
+    return dot(perceptualLuminance, color);
+}
+
+#endif
+
 vec4 applySeasons(vec3 vertexColor, float vertexAlpha, vec4 diffuse) {
     vec2 uv = vertexColor.xy;
     diffuse.rgb *= mix(vec3(1.0, 1.0, 1.0), texture2D(s_SeasonsTexture, uv).rgb * 2.0, vertexColor.b);
@@ -120,10 +130,7 @@ vec4 applySeasons(vec3 vertexColor, float vertexAlpha, vec4 diffuse) {
     return diffuse;
 }
 
-float lumaPerceptual(vec3 color) {
-    vec3 perceptualLuminance = vec3(0.299, 0.587, 0.114);
-    return dot(perceptualLuminance, color);
-}
+
 
 void main() {
     vec4 diffuse = texture2D(s_MatTexture, v_texcoord0);
