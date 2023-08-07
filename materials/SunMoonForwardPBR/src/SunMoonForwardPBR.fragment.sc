@@ -52,6 +52,9 @@ vec4 sampleVolume(highp sampler2DArray volume, ivec3 dimensions, vec3 uvw) {
 }
 
 void main() {
+#if FALLBACK
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+#else
     vec4 spriteColor = texture2D(s_SunMoonTexture, v_texcoord0);
     vec3 sunMoonColor = SunMoonColor.rgb * spriteColor.rgb * SunMoonColor.a;
     vec3 outColor;
@@ -64,4 +67,5 @@ void main() {
     }
 
     gl_FragColor = vec4(outColor.r, outColor.g, outColor.b, 1.0);
+#endif
 }
