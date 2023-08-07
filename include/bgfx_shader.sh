@@ -620,10 +620,10 @@ vec4  mod(vec4  _a, vec4  _b) { return _a - _b * floor(_a / _b); }
 #	define atan2(_x, _y) atan(_x, _y)
 #	define mul(_a, _b) ( (_a) * (_b) )
 #	define saturate(_x) clamp(_x, 0.0, 1.0)
-#	define SAMPLER2D(_name, _reg)       uniform sampler2D _name
-#	define SAMPLER2DMS(_name, _reg)     uniform sampler2DMS _name
-#	define SAMPLER3D(_name, _reg)       uniform sampler3D _name
-#	define SAMPLERCUBE(_name, _reg)     uniform samplerCube _name
+#	define SAMPLER2D(_name, _reg)       uniform lowp sampler2D _name
+#	define SAMPLER2DMS(_name, _reg)     uniform highp sampler2DMS _name
+#	define SAMPLER3D(_name, _reg)       uniform highp sampler3D _name
+#	define SAMPLERCUBE(_name, _reg)     uniform lowp samplerCube _name
 #	define SAMPLER2DSHADOW(_name, _reg) uniform highp sampler2DShadow _name
 
 #	define SAMPLER2DARRAY(_name, _reg)       uniform highp sampler2DArray _name
@@ -631,10 +631,10 @@ vec4  mod(vec4  _a, vec4  _b) { return _a - _b * floor(_a / _b); }
 #	define SAMPLERCUBEARRAY(_name, _reg)     uniform highp samplerCubeArray _name
 #	define SAMPLER2DARRAYSHADOW(_name, _reg) uniform highp sampler2DArrayShadow _name
 
-#	define ISAMPLER2D(_name, _reg) uniform isampler2D _name
-#	define USAMPLER2D(_name, _reg) uniform usampler2D _name
-#	define ISAMPLER3D(_name, _reg) uniform isampler3D _name
-#	define USAMPLER3D(_name, _reg) uniform usampler3D _name
+#	define ISAMPLER2D(_name, _reg) uniform highp isampler2D _name
+#	define USAMPLER2D(_name, _reg) uniform highp usampler2D _name
+#	define ISAMPLER3D(_name, _reg) uniform highp isampler3D _name
+#	define USAMPLER3D(_name, _reg) uniform highp usampler3D _name
 
 #	if BGFX_SHADER_LANGUAGE_GLSL >= 130
 #		define texture2D(_sampler, _coord)      texture(_sampler, _coord)
