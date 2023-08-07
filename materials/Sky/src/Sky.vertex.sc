@@ -21,6 +21,7 @@ void main() {
     //Opaque
     v_color0 = mix(SkyColor, FogColor, a_color0.x);
     gl_Position = mul(u_modelViewProj, vec4(a_position, 1.0));
+
 #elif defined(GEOMETRY_PREPASS) && (BGFX_SHADER_LANGUAGE_GLSL >= 310 || BGFX_SHADER_LANGUAGE_HLSL >= 500 || BGFX_SHADER_LANGUAGE_PSSL || BGFX_SHADER_LANGUAGE_SPIRV || BGFX_SHADER_LANGUAGE_METAL)
     //GeometryPrepass
     mat4 model;
@@ -36,9 +37,11 @@ void main() {
     v_prevWorldPos = mul(u_model[0], vec4(a_position, 1.0)).xyz;
     v_color0 = mix(SkyColor, FogColor, a_color0.x);
     gl_Position = mul(u_modelViewProj, vec4(a_position, 1.0));
+
 #else
     //Fallback
     v_color0 = vec4(0.0, 0.0, 0.0, 0.0);
     gl_Position = vec4(0.0, 0.0, 0.0, 0.0);
+
 #endif
 }
