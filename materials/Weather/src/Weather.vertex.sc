@@ -16,7 +16,7 @@ uniform vec4 PositionBaseOffset;
 #if BGFX_SHADER_LANGUAGE_GLSL
     #if BGFX_SHADER_LANGUAGE_GLSL < 130
     float trunc(float _x) { return float(int(_x)); }
-    #endif
+    #endif // BGFX_SHADER_LANGUAGE_GLSL < 130
 float fmod(float _a, float _b) { return _a - _b * trunc(_a / _b); }
 vec2 fmod(vec2 _a, vec2 _b) { return vec2(fmod(_a.x, _b.x), fmod(_a.y, _b.y)); }
 vec3 fmod(vec3 _a, vec3 _b) { return vec3(fmod(_a.x, _b.x), fmod(_a.y, _b.y), fmod(_a.z, _b.z)); }
