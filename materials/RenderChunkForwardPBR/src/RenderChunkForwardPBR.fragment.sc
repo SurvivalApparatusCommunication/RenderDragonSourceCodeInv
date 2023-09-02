@@ -1082,9 +1082,10 @@ void evaluateDirectionalLightsDirectContribution(inout PBRLightingContributions 
         if (areCascadedShadowsEnabled(DirectionalShadowModeAndCloudShadowToggleAndPointLightToggleAndShadowToggle.x)) {
             vec3 sl = normalize(mul(u_view, s_DirectionalLightSources[i].shadowDirection).xyz);
             float nDotsl = max(dot(n, sl), 0.0);
+            LightSourceWorldInfo light = s_DirectionalLightSources[i];
             directOcclusion = GetShadowAmount(
                 shadowParams,
-                getDirectionalLightParams(s_DirectionalLightSources[i]),
+                getDirectionalLightParams(light),
                 worldPosition,
                 nDotsl,
                 viewDepth);
