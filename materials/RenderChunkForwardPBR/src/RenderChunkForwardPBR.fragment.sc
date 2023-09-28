@@ -1082,9 +1082,10 @@ void evaluateDirectionalLightsDirectContribution(inout PBRLightingContributions 
         if (areCascadedShadowsEnabled(DirectionalShadowModeAndCloudShadowToggleAndPointLightToggleAndShadowToggle.x)) {
             vec3 sl = normalize(mul(u_view, s_DirectionalLightSources[i].shadowDirection).xyz);
             float nDotsl = max(dot(n, sl), 0.0);
+            LightSourceWorldInfo light = s_DirectionalLightSources[i];
             directOcclusion = GetShadowAmount(
                 shadowParams,
-                getDirectionalLightParams(s_DirectionalLightSources[i]),
+                getDirectionalLightParams(light),
                 worldPosition,
                 nDotsl,
                 viewDepth);
@@ -1303,7 +1304,7 @@ void main() {
         normalize(v_bitangent),
         normalize(v_normal));
     tbn = transpose(tbn);
-    vec3 viewSpaceNormal = mul(tbn, tangentNormal).xyz;
+    vec3 normal = mul(tbn, tangentNormal).xyz;
 
     //computeLighting_RenderChunk_SplitLightMapValues
     vec2 newLightmapUV = min(v_lightmapUV.xy, vec2(1.0f, 1.0f));
@@ -1315,7 +1316,7 @@ void main() {
     vec4 clipPosition = mul(u_proj, viewPosition);
     vec3 ndcPosition = clipPosition.xyz / clipPosition.w;
     vec2 uv = (ndcPosition.xy + vec2(1.0, 1.0)) / 2.0;
-    vec4 worldNormal = vec4(viewSpaceNormal, 0.0);
+    vec4 worldNormal = vec4(normal, 0.0);
     vec4 viewNormal = mul(u_view, worldNormal);
     fragmentData.lightClusterUV = uv;
     fragmentData.worldPosition = v_worldPos;
