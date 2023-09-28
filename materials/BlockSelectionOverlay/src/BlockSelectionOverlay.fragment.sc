@@ -5,8 +5,6 @@ $input v_texcoord0
 uniform vec4 MatColor;
 
 void main() {
-    vec4 color = MatColor;
-    color.a = 0.1;
-    gl_FragColor = color;
+    gl_FragColor = MatColor;
     gl_FragDepth = 0.0;
 }
