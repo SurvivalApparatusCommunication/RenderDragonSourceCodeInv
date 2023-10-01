@@ -17,13 +17,17 @@ float median(float a, float b, float c) {
 }
 void main() {
     vec4 glyphColor = texture2D(s_GlyphTexture, v_texcoord0);
+#if SMOOTH
     const float center = 0.4;
     const float radius = 0.1;
     glyphColor = smoothstep(center - radius, center + radius, glyphColor);
+#endif
+#if ALPHA_TEST
     if(glyphColor.a < 0.5) {
         discard;
     }
-
+#endif
+#if MSDF
     vec4 resultColor = v_color0;
     vec2 uv = v_texcoord0;
     float sampleDistance = median(glyphColor.r, glyphColor.g, glyphColor.b);
@@ -42,6 +46,10 @@ void main() {
 
     vec4 diffuse = mix(vec4(ShadowColor.rgb, ShadowColor.a * shadowAlpha), resultColor, outerEdgeAlpha) * TintColor;
     diffuse.a = diffuse.a * HudOpacity.x;
-
     gl_FragColor = diffuse;
+#else
+    vec4 diffuse = v_color0 * glyphColor * TintColor;
+    diffuse.a = diffuse.a * HudOpacity.x;
+    gl_FragColor = diffuse;
+#endif
 }
