@@ -1,4 +1,4 @@
-$input a_color0, a_position, a_texcoord0
+$input a_position, a_texcoord0
 $output v_texcoord0
 
 #include <bgfx_shader.sh>
