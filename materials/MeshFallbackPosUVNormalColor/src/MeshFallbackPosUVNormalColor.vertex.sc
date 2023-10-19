@@ -32,7 +32,7 @@ void main() {
 #ifdef LIT
     vec4 light;
     float L = 1.0;
-    vec3 N = normalize( ( (World) * (a_normal) ).xyz );
+    vec3 N = normalize(mul(World, a_normal).xyz);
     N.y *= TileLightColor.w;
     float yLight = (1.0+N.y) * 0.5;
     L = yLight * (1.0 - 0.45) + N.x*N.x * -0.1 + N.z*N.z * 0.1 + 0.45;
