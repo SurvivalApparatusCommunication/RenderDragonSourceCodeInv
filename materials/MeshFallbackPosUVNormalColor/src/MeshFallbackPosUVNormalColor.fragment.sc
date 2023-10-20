@@ -10,10 +10,6 @@ uniform vec4 OverlayColor;
 uniform vec4 ChangeColor;
 uniform vec4 CurrentColor;
 
-vec3 applyFogVanilla(vec3 diffuse, vec3 fogColor, float fogIntensity) {
-    return mix(diffuse, fogColor, fogIntensity);
-}
-
 SAMPLER2D(s_MatTexture, 0);
 
 void main() {
