@@ -38,6 +38,7 @@ void main() {
     L = yLight * (1.0 - 0.45) + N.x*N.x * -0.1 + N.z*N.z * 0.1 + 0.45;
     light = vec4(vec3(L, L, L) * TileLightColor.xyz, 1.0);
     light += OverlayColor.a * 0.35;
+    v_light = light;
 #endif
 
     float cameraDepth = position.z;
