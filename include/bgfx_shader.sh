@@ -642,9 +642,11 @@ vec4  mod(vec4  _a, vec4  _b) { return _a - _b * floor(_a / _b); }
 #	define USAMPLER3D(_name, _reg) uniform highp usampler3D _name
 
 #	if BGFX_SHADER_LANGUAGE_GLSL >= 130
-#		define texture2D(_sampler, _coord)      texture(_sampler, _coord)
-#		define texture2DArray(_sampler, _coord) texture(_sampler, _coord)
-#		define texture3D(_sampler, _coord)      texture(_sampler, _coord)
+#		define texture2D(_sampler, _coord)               texture(_sampler, _coord)
+#		define texture2DArray(_sampler, _coord)          texture(_sampler, _coord)
+#		define texture2DArrayLod(_sampler, _coord, _lod) textureLod(_sampler, _coord, _lod)
+#		define texture3D(_sampler, _coord)          texture(_sampler, _coord)
+#		define texture3DLod(_sampler, _coord, _lod) textureLod(_sampler, _coord, _lod)
 #		define textureCube(_sampler, _coord)    texture(_sampler, _coord)
 #		define texture2DLod(_sampler, _coord, _lod)                textureLod(_sampler, _coord, _lod)
 #		define texture2DLodOffset(_sampler, _coord, _lod, _offset) textureLodOffset(_sampler, _coord, _lod, _offset)
