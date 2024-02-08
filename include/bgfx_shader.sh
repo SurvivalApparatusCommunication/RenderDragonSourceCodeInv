@@ -53,11 +53,11 @@
 
 // To be able to patch the uav registers on the DXBC SPDB Chunk (D3D11 renderer) the whitespaces around
 // '_type[_reg]' are necessary. This only affects shaders with debug info (i.e., those that have the SPDB Chunk).
-#	if BGFX_SHADER_LANGUAGE_HLSL > 400 || BGFX_SHADER_LANGUAGE_PSSL || BGFX_SHADER_LANGUAGE_SPIRV || BGFX_SHADER_LANGUAGE_METAL
+//#	if BGFX_SHADER_LANGUAGE_HLSL > 400 || BGFX_SHADER_LANGUAGE_PSSL || BGFX_SHADER_LANGUAGE_SPIRV || BGFX_SHADER_LANGUAGE_METAL
 #		define REGISTER(_type, _reg) register( _type[_reg] )
-#	else
-#		define REGISTER(_type, _reg) register(_type ## _reg)
-#	endif // BGFX_SHADER_LANGUAGE_HLSL
+//#	else
+//#		define REGISTER(_type, _reg) register(_type ## _reg)
+//#	endif // BGFX_SHADER_LANGUAGE_HLSL
 
 #   if BGFX_SHADER_LANGUAGE_HLSL >= 400 && BGFX_SHADER_TYPE_FRAGMENT
 cbuffer __placeholder__ : REGISTER(b, 0) {};

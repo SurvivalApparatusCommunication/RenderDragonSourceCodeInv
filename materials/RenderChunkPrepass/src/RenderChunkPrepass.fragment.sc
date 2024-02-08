@@ -33,9 +33,9 @@ uniform vec4 LightDiffuseColorAndIlluminance;
 uniform vec4 ViewPositionAndTime;
 uniform vec4 RenderChunkFogAlpha;
 
-SAMPLER2D(s_MatTexture, 0);
-SAMPLER2D(s_SeasonsTexture, 1);
-SAMPLER2D(s_LightMapTexture, 2);
+SAMPLER2D_AUTOREG(s_MatTexture);
+SAMPLER2D_AUTOREG(s_SeasonsTexture);
+SAMPLER2D_AUTOREG(s_LightMapTexture);
 
 #if defined(GEOMETRY_PREPASS) || defined(GEOMETRY_PREPASS_ALPHA_TEST)
 

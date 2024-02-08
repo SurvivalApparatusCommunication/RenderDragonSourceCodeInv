@@ -10,7 +10,7 @@ uniform vec4 OverlayColor;
 uniform vec4 ChangeColor;
 uniform vec4 CurrentColor;
 
-SAMPLER2D(s_MatTexture, 0);
+SAMPLER2D_AUTOREG(s_MatTexture);
 
 void main() {
     vec4 diffuse;

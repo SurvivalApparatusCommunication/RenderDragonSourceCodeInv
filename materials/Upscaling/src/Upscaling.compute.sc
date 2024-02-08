@@ -12,10 +12,10 @@ uniform mat4 CurrentViewProjectionMatrixUniform;
 uniform vec4 CurrentWorldOrigin;
 uniform vec4 PreviousWorldOrigin;
 
-SAMPLER2D(s_InputFinalColor, 0);
-SAMPLER2D(s_InputTAAHistory, 1);
-SAMPLER2D(s_InputBufferMotionVectors, 2);
-IMAGE2D_WR(s_OutputBuffer, rgba16f, 3);
+SAMPLER2D_AUTOREG(s_InputFinalColor);
+SAMPLER2D_AUTOREG(s_InputTAAHistory);
+SAMPLER2D_AUTOREG(s_InputBufferMotionVectors);
+IMAGE2D_WR_AUTOREG(s_OutputBuffer, rgba16f);
 
 vec2 computeMotionVectorForEnvironment(vec3 pixelWorldPos, mat4 currentViewProj, mat4 previousViewProj, vec3 currentWorldOrigin, vec3 previousWorldOrigin) {
     vec4 clipPos = mul(currentViewProj, vec4(pixelWorldPos, 0.0));

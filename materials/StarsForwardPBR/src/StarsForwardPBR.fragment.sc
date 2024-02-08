@@ -27,7 +27,7 @@ uniform vec4 VolumeNearFar;
 uniform vec4 StarsColor;
 uniform mat4 CloudShadowProj;
 
-SAMPLER2DARRAY(s_ScatteringBuffer, 7);
+SAMPLER2DARRAY_AUTOREG(s_ScatteringBuffer);
 
 float linearToLogDepth(float linearDepth) {
     return log((exp(4.0) - 1.0) * linearDepth + 1.0) / 4.0;

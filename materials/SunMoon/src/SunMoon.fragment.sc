@@ -4,7 +4,7 @@ $input v_texcoord0
 
 uniform vec4 SunMoonColor;
 
-SAMPLER2D(s_SunMoonTexture, 0);
+SAMPLER2D_AUTOREG(s_SunMoonTexture);
 
 void main() {
     gl_FragColor = SunMoonColor * texture2D(s_SunMoonTexture, v_texcoord0);

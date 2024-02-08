@@ -1,7 +1,7 @@
 @echo off
 
-set MBT_VERSION=0.8.1
-set DATA_VERSION=1.20.20.21
+set MBT_VERSION=0.8.2
+set DATA_VERSION=1.20.60
 
 set MBT_DIR=env\MaterialBinTool-%MBT_VERSION%
 set MBT=%MBT_DIR%\MaterialBinTool-%MBT_VERSION%-native-image.exe

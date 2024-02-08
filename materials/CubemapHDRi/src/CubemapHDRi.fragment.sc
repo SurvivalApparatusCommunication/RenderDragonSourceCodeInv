@@ -2,7 +2,7 @@ $input v_texcoord0
 
 #include <bgfx_shader.sh>
 
-SAMPLERCUBE(s_MatTexture, 0);
+SAMPLERCUBE_AUTOREG(s_MatTexture);
 
 vec3 color_degamma(vec3 clr) {
     float e = 2.2;

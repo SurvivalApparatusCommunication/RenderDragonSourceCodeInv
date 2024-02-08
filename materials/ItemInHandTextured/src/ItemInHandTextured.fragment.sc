@@ -11,7 +11,7 @@ uniform vec4 ColorBased;
 uniform vec4 MultiplicativeTintColor;
 uniform vec4 MatColor;
 
-SAMPLER2D(s_MatTexture, 0);
+SAMPLER2D_AUTOREG(s_MatTexture);
 
 void main() {
     #if DEPTH_ONLY

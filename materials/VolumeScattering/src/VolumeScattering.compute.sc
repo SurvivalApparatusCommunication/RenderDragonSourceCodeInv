@@ -4,8 +4,8 @@ uniform vec4 ClearValue;
 uniform vec4 VolumeNearFar;
 uniform vec4 VolumeDimensions;
 
-IMAGE2D_ARRAY_RO(s_ScatteringBufferIn,  rgba16f, 0);
-IMAGE2D_ARRAY_WR(s_ScatteringBufferOut, rgba16f, 1);
+IMAGE2D_ARRAY_RO_AUTOREG(s_ScatteringBufferIn,  rgba16f);
+IMAGE2D_ARRAY_WR_AUTOREG(s_ScatteringBufferOut, rgba16f);
 
 
 #if SCATTERING

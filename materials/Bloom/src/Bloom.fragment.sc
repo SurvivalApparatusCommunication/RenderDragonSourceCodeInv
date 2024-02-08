@@ -5,10 +5,10 @@ $input v_texcoord0
 uniform vec4 BloomParams1;
 uniform vec4 BloomParams2;
 
-SAMPLER2D(s_HDRi, 0);
-SAMPLER2D(s_BlurPyramidTexture, 1);
-SAMPLER2D(s_RasterColor, 2);
-SAMPLER2D(s_DepthTexture, 3);
+SAMPLER2D_AUTOREG(s_HDRi);
+SAMPLER2D_AUTOREG(s_BlurPyramidTexture);
+SAMPLER2D_AUTOREG(s_RasterColor);
+SAMPLER2D_AUTOREG(s_DepthTexture);
 
 float luminance(vec3 clr) {
     return dot(clr, vec3(0.2126, 0.7152, 0.0722));

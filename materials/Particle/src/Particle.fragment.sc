@@ -3,7 +3,7 @@ $input v_color0, v_fog, v_texcoord0
 #include <bgfx_shader.sh>
 #include <MinecraftRenderer.Materials/FogUtil.dragonh>
 
-SAMPLER2D(s_ParticleTexture, 0);
+SAMPLER2D_AUTOREG(s_ParticleTexture);
 
 void main() {
     vec4 diffuse = texture2D(s_ParticleTexture, v_texcoord0);

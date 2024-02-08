@@ -11,11 +11,11 @@ uniform vec4 ScreenSize;
 uniform vec4 LogLuminanceRange;
 uniform vec4 EnableCustomWeight;
 
-SAMPLER2D(s_GameColor, 0);
-SAMPLER2D(s_CustomWeight, 4);
-BUFFER_RW(s_CurFrameLuminanceHistogram, Histogram, 1);
-IMAGE2D_RW(s_AdaptedFrameAverageLuminance, r32f, 2);
-IMAGE2D_RW(s_MaxFrameLuminance, r32f, 3);
+SAMPLER2D_AUTOREG(s_GameColor);
+SAMPLER2D_AUTOREG(s_CustomWeight);
+BUFFER_RW_AUTOREG(s_CurFrameLuminanceHistogram, Histogram);
+IMAGE2D_RW_AUTOREG(s_AdaptedFrameAverageLuminance, r32f);
+IMAGE2D_RW_AUTOREG(s_MaxFrameLuminance, r32f);
 
 
 #if BUILD_HISTOGRAM

@@ -117,24 +117,24 @@ uniform vec4 IBLParameters;
 uniform vec4 SkyZenithColor;
 uniform vec4 SkyHorizonColor;
 
-SAMPLER2D(s_MatTexture, 5);
-SAMPLER2D(s_SeasonsTexture, 4);
-SAMPLER2D(s_LightMapTexture, 6);
-BUFFER_RO(s_PBRData, PBRTextureData, 7);
+SAMPLER2D_AUTOREG(s_MatTexture);
+SAMPLER2D_AUTOREG(s_SeasonsTexture);
+SAMPLER2D_AUTOREG(s_LightMapTexture);
+BUFFER_RO_AUTOREG(s_PBRData, PBRTextureData);
 
-SAMPLERCUBE(s_SpecularIBL, 0);
-SAMPLER2D(s_BrdfMap, 1);
+SAMPLERCUBE_AUTOREG(s_SpecularIBL);
+SAMPLER2D_AUTOREG(s_BrdfMap);
 
-SAMPLER2DSHADOW(s_CloudShadow, 3);
-SAMPLER2DARRAYSHADOW(s_ShadowCascades0, 2);
-SAMPLER2DARRAYSHADOW(s_ShadowCascades1, 9);
+SAMPLER2DSHADOW_AUTOREG(s_CloudShadow);
+SAMPLER2DARRAYSHADOW_AUTOREG(s_ShadowCascades0);
+SAMPLER2DARRAYSHADOW_AUTOREG(s_ShadowCascades1);
 
-BUFFER_RO(s_DirectionalLightSources, LightSourceWorldInfo, 8);
-BUFFER_RO(s_LightLookupArray, LightData, 10);
-BUFFER_RO(s_Lights, Light, 11);
+BUFFER_RO_AUTOREG(s_DirectionalLightSources, LightSourceWorldInfo);
+BUFFER_RO_AUTOREG(s_LightLookupArray, LightData);
+BUFFER_RO_AUTOREG(s_Lights, Light);
 
-SAMPLER2DARRAYSHADOW(s_PointLightShadowTextureArray, 12);
-SAMPLER2DARRAY(s_ScatteringBuffer, 13);
+SAMPLER2DARRAYSHADOW_AUTOREG(s_PointLightShadowTextureArray);
+SAMPLER2DARRAY_AUTOREG(s_ScatteringBuffer);
 
 /*vec3 color_gamma(vec3 clr) {
 float e = 1.0 / 2.2;

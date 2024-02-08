@@ -24,8 +24,8 @@ uniform mat4 Bones[8];
 uniform vec4 UVScale;
 uniform vec4 GlintColor;
 
-SAMPLER2D(s_MatTexture, 0);
-SAMPLER2D(s_MatTexture1, 1);
+SAMPLER2D_AUTOREG(s_MatTexture);
+SAMPLER2D_AUTOREG(s_MatTexture1);
 
 void main() {
     #if DEPTH_ONLY

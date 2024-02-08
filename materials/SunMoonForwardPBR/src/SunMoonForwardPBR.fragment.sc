@@ -27,8 +27,8 @@ uniform vec4 VolumeNearFar;
 uniform vec4 SunMoonColor;
 uniform mat4 CloudShadowProj;
 
-SAMPLER2D(s_SunMoonTexture, 0);
-SAMPLER2DARRAY(s_ScatteringBuffer, 8);
+SAMPLER2D_AUTOREG(s_SunMoonTexture);
+SAMPLER2DARRAY_AUTOREG(s_ScatteringBuffer);
 
 float linearToLogDepth(float linearDepth) {
     return log((exp(4.0) - 1.0) * linearDepth + 1.0) / 4.0;

@@ -29,8 +29,8 @@ uniform vec4 CameraFarPlane;
 uniform vec4 ClusterDimensions;
 uniform vec4 ClusterSize;
 
-BUFFER_WR(s_LightLookupArray, LightData,    0);
-BUFFER_RO(s_Extends,          LightExtends, 1);
+BUFFER_WR_AUTOREG(s_LightLookupArray, LightData);
+BUFFER_RO_AUTOREG(s_Extends, LightExtends);
 
 float getClusterDepthByIndex(float index, float maxSlices, vec2 clusterNearFar) {
     float zNear = clusterNearFar.x;

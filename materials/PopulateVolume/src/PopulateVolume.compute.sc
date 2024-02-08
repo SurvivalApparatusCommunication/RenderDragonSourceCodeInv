@@ -8,7 +8,7 @@ uniform vec4 WorldOrigin;
 uniform vec4 AlbedoExtinction;
 uniform vec4 DensityFalloff;
 
-IMAGE2D_ARRAY_WR(s_ScatteringBufferOut, rgba16f, 0);
+IMAGE2D_ARRAY_WR_AUTOREG(s_ScatteringBufferOut, rgba16f);
 
 /*
 float linearToLogDepth(float linearDepth) {

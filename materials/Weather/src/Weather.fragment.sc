@@ -13,9 +13,9 @@ uniform vec4 PositionForwardOffset;
 uniform vec4 PositionBaseOffset;
 uniform vec4 Velocity;
 
-SAMPLER2D(s_WeatherTexture, 0);
-SAMPLER2D(s_OcclusionTexture, 1);
-SAMPLER2D(s_LightingTexture, 2);
+SAMPLER2D(s_WeatherTexture, s_WeatherTexture_REG);
+SAMPLER2D(s_OcclusionTexture, s_OcclusionTexture_REG);
+SAMPLER2D(s_LightingTexture, s_LightingTexture_REG);
 
 float getOcclusionHeight(const vec4 occlusionTextureSample) {
     float height = occlusionTextureSample.g + (occlusionTextureSample.b * 255.0f) - (OcclusionHeightOffset.x / 255.0f);

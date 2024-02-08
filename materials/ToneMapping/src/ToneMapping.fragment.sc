@@ -9,13 +9,13 @@ uniform vec4 ScreenSize;
 uniform vec4 TonemapCorrection;
 uniform vec4 TonemapParams0;
 
-SAMPLER2D(s_RasterColor, 0);
-SAMPLER2D(s_ColorTexture, 1);
-SAMPLER2D(s_LuminanceColorTexture, 2);
-SAMPLER2D(s_AverageLuminance, 3);
-SAMPLER2D(s_MaxLuminance, 4);
-SAMPLER2D(s_RasterizedColor, 5);
-SAMPLER2D(s_CustomExposureCompensation, 6);
+SAMPLER2D_AUTOREG(s_RasterColor);
+SAMPLER2D_AUTOREG(s_ColorTexture);
+SAMPLER2D_AUTOREG(s_LuminanceColorTexture);
+SAMPLER2D_AUTOREG(s_AverageLuminance);
+SAMPLER2D_AUTOREG(s_MaxLuminance);
+SAMPLER2D_AUTOREG(s_RasterizedColor);
+SAMPLER2D_AUTOREG(s_CustomExposureCompensation);
 
 /*float computeWeight(float depthCenter, float depthP, float phiDepth, vec3 normalCenter, vec3 normalP, float phiNormal, float luminanceIllumCenter, float luminanceIllumP, float phiIllum) {
 float weightNormal = pow(clamp(dot(normalCenter, normalP), 0.0, 1.0), phiNormal);
