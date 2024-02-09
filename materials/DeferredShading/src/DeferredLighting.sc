@@ -181,12 +181,19 @@ struct ColorTransform {
 };
 
 vec4 projToView(vec4 p, mat4 inverseProj) {
+#if BGFX_SHADER_LANGUAGE_GLSL
     p = vec4(
         p.x * inverseProj[0][0],
         p.y * inverseProj[1][1],
         p.w * inverseProj[3][2],
-        p.z * inverseProj[2][3] + p.w * inverseProj[3][3]
-    );
+        p.z * inverseProj[2][3] + p.w * inverseProj[3][3]);
+#else
+    p = vec4(
+        p.x * inverseProj[0][0],
+        p.y * inverseProj[1][1],
+        p.w * inverseProj[2][3],
+        p.z * inverseProj[3][2] + p.w * inverseProj[3][3]);
+#endif
     p /= p.w;
     return p;
 }
@@ -245,6 +252,9 @@ float getClusterDepthIndex(float viewSpaceDepth, float maxSlices, vec2 clusterNe
 }
 
 vec3 getClusterIndex(vec2 uv, float viewSpaceDepth, vec3 clusterDimensions, vec2 clusterNearFar, vec2 screenSize, vec2 clusterSize) {
+#if !BGFX_SHADER_LANGUAGE_GLSL
+    uv.y = 1.0 - uv.y;
+#endif
     float viewportX = uv.x * screenSize.x;
     float viewportY = uv.y * screenSize.y;
     float clusterIdxX = floor(viewportX / clusterSize.x);
@@ -290,7 +300,7 @@ int GetShadowCascade(int lightIndex, vec3 worldPos, out vec4 projPos) {
         }
         projPos = mul(proj, vec4(worldPos, 1.0));
         projPos /= projPos.w;
-        vec3 posDiff = clamp(projPos.xyz, vec3(-1.0, - 1.0, - 1.0), vec3(1.0, 1.0, 1.0)) - projPos.xyz;
+        vec3 posDiff = clamp(projPos.xyz, vec3(-1.0, -1.0, -1.0), vec3(1.0, 1.0, 1.0)) - projPos.xyz;
         if (length(posDiff) == 0.0) {
             return c;
         }
@@ -302,6 +312,9 @@ float GetFilteredCloudShadow(vec3 worldPos, float NdL) {
     const int cloudCascade = 0;
     vec4 cloudProjPos = mul(CloudShadowProj, vec4(worldPos, 1.0));
     cloudProjPos /= cloudProjPos.w;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+    cloudProjPos.y *= -1.0;
+#endif
     float bias = ShadowBias[cloudCascade] + ShadowSlopeBias[cloudCascade] * clamp(tan(acos(NdL)), 0.0, 1.0);
     cloudProjPos.z -= bias / cloudProjPos.w;
     vec2 cloudUv = (vec2(cloudProjPos.x, cloudProjPos.y) * 0.5f + 0.5f) * CascadeShadowResolutions[cloudCascade];
@@ -309,8 +322,10 @@ float GetFilteredCloudShadow(vec3 worldPos, float NdL) {
     int filterWidth = clamp(int(EmissiveMultiplierAndDesaturationAndCloudPCFAndContribution.z * 1.0 + 0.5f), 1, MaxFilterWidth);
     int filterOffset = filterWidth / 2;
     float amt = 0.f;
+#if BGFX_SHADER_LANGUAGE_GLSL
     cloudProjPos.z = cloudProjPos.z * 0.5 + 0.5;
     cloudUv.y += 1.0 - CascadeShadowResolutions[cloudCascade];
+#endif
     for(int iy = 0; iy < filterWidth; ++ iy) {
         for(int ix = 0; ix < filterWidth; ++ ix) {
             float y = float(iy - filterOffset) + 0.5f;
@@ -326,6 +341,9 @@ float GetPlayerShadow(vec3 worldPos, float NdL) {
     const int playerCascade = 0;
     vec4 playerProjPos = mul(PlayerShadowProj, vec4(worldPos, 1.0));
     playerProjPos /= playerProjPos.w;
+#if !BGFX_SHADER_LANGUAGE_GLSL
+    playerProjPos.y *= -1.0;
+#endif
     float bias = ShadowBias[playerCascade] + ShadowSlopeBias[playerCascade] * clamp(tan(acos(NdL)), 0.0, 1.0);
     playerProjPos.z -= bias / playerProjPos.w;
     playerProjPos.z = min(playerProjPos.z, 1.0);
@@ -334,8 +352,10 @@ float GetPlayerShadow(vec3 worldPos, float NdL) {
     int filterWidth = clamp(int(2.0 * 1.0 + 0.5f), 1, MaxFilterWidth);
     int filterOffset = filterWidth / 2;
     float amt = 0.f;
+#if BGFX_SHADER_LANGUAGE_GLSL
     playerProjPos.z = playerProjPos.z * 0.5 + 0.5;
     playerUv.y += 1.0 - FirstPersonPlayerShadowsEnabledAndResolutionAndFilterWidth.y;
+#endif
     for(int iy = 0; iy < filterWidth; ++ iy) {
         for(int ix = 0; ix < filterWidth; ++ ix) {
             float y = float(iy - filterOffset) + 0.5f;
@@ -359,8 +379,10 @@ float GetFilteredShadow(int cascadeIndex, float projZ, int cascade, vec2 uv) {
     int filterOffset = filterWidth / 2;
     float amt = 0.f;
     vec2 baseUv = uv * CascadeShadowResolutions[cascade];
+#if BGFX_SHADER_LANGUAGE_GLSL
     projZ = projZ * 0.5 + 0.5;
     baseUv.y += 1.0 - CascadeShadowResolutions[cascade];
+#endif
     for(int iy = 0; iy < filterWidth; ++ iy) {
         for(int ix = 0; ix < filterWidth; ++ ix) {
             float y = float(iy - filterOffset) + 0.5f;
@@ -383,6 +405,9 @@ float GetShadowAmount(int lightIndex, vec3 worldPos, float NdL, float viewDepth)
     vec4 projPos;
     int cascade = GetShadowCascade(lightIndex, worldPos, projPos);
     if (cascade != -1) {
+#if !BGFX_SHADER_LANGUAGE_GLSL
+        projPos.y *= -1.0;
+#endif
         float bias = ShadowBias[cascade] + ShadowSlopeBias[cascade] * clamp(tan(acos(NdL)), 0.0, 1.0);
         projPos.z -= bias / projPos.w;
         vec2 uv = vec2(projPos.x, projPos.y) * 0.5f + 0.5f;
@@ -398,7 +423,7 @@ float GetShadowAmount(int lightIndex, vec3 worldPos, float NdL, float viewDepth)
                 amt = min(amt, cloudAmt);
             }
         }
-        float shadowFade = smoothstep(max(0.0, ShadowParams.y - 8.0), ShadowParams.y, - viewDepth);
+        float shadowFade = smoothstep(max(0.0, ShadowParams.y - 8.0), ShadowParams.y, -viewDepth);
         amt = mix(amt, 1.0, shadowFade);
     }
     return amt;
@@ -517,6 +542,7 @@ vec3 findLinePlaneIntersectionForCubemap(vec3 normal, vec3 lineDirection) {
     return lineDirection * (1.f / dot(lineDirection, normal));
 }
 
+#if BGFX_SHADER_LANGUAGE_GLSL
 vec3 getSampleCoordinateForAdjacentFace(vec3 inCoordinate) {
     vec3 outCoordinate = inCoordinate;
     if (inCoordinate.y > 1.0f) {
@@ -664,6 +690,155 @@ vec3 getSampleCoordinateForAdjacentFace(vec3 inCoordinate) {
     }
     return outCoordinate;
 }
+#else
+vec3 getSampleCoordinateForAdjacentFace(vec3 inCoordinate) {
+    vec3 outCoordinate = inCoordinate;
+    if (inCoordinate.y > 1.0) {
+        switch (int(inCoordinate.z)) {
+            case 0:
+                outCoordinate.z = float(2);
+                outCoordinate.x = 2.0 - inCoordinate.y;
+                outCoordinate.y = inCoordinate.x;
+                break;
+            case 1:
+                outCoordinate.z = float(2);
+                outCoordinate.x = inCoordinate.y - 1.0f;
+                outCoordinate.y = 1.0f - inCoordinate.x;
+                break;
+            case 2:
+                outCoordinate.z = float(5);
+                outCoordinate.x = 1.0f - inCoordinate.x;
+                outCoordinate.y = 2.0f - inCoordinate.y;
+                break;
+            case 3:
+                outCoordinate.z = float(4);
+                outCoordinate.x = inCoordinate.x;
+                outCoordinate.y = inCoordinate.y - 1.0f;
+                break;
+            case 4:
+                outCoordinate.z = float(2);
+                outCoordinate.x = inCoordinate.x;
+                outCoordinate.y = inCoordinate.y - 1.0f;
+                break;
+            case 5:
+                outCoordinate.z = float(2);
+                outCoordinate.x = 1.0f - inCoordinate.x;
+                outCoordinate.y = 2.0f - inCoordinate.y;
+                break;
+            default:
+                break;
+        }
+    } else if (inCoordinate.y < 0.0) {
+        switch (int(inCoordinate.z)) {
+            case 0:
+                outCoordinate.z = float(3);
+                outCoordinate.x = 1.0f + inCoordinate.y;
+                outCoordinate.y = 1.0f - inCoordinate.x;
+                break;
+            case 1:
+                outCoordinate.z = float(3);
+                outCoordinate.x = -inCoordinate.y;
+                outCoordinate.y = inCoordinate.x;
+                break;
+            case 2:
+                outCoordinate.z = float(4);
+                outCoordinate.x = inCoordinate.x;
+                outCoordinate.y = 1.0f + inCoordinate.y;
+                break;
+            case 3:
+                outCoordinate.z = float(5);
+                outCoordinate.x = 1.0f - inCoordinate.x;
+                outCoordinate.y = -inCoordinate.y;
+                break;
+            case 4:
+                outCoordinate.z = float(3);
+                outCoordinate.x = inCoordinate.x;
+                outCoordinate.y = 1.0 + inCoordinate.y;
+                break;
+            case 5:
+                outCoordinate.z = float(3);
+                outCoordinate.x = 1.0f - inCoordinate.x;
+                outCoordinate.y = -inCoordinate.y;
+                break;
+            default:
+                break;
+        }
+    }
+    vec2 uvCache = outCoordinate.xy;
+    if (uvCache.x > 1.0) {
+        switch (int(outCoordinate.z)) {
+            case 0:
+                outCoordinate.z = float(5);
+                outCoordinate.x = uvCache.x - 1.0f;
+                outCoordinate.y = uvCache.y;
+                break;
+            case 1:
+                outCoordinate.z = float(4);
+                outCoordinate.x = uvCache.x - 1.0f;
+                outCoordinate.y = uvCache.y;
+                break;
+            case 2:
+                outCoordinate.z = float(0);
+                outCoordinate.x = uvCache.y;
+                outCoordinate.y = 2.0f - uvCache.x;
+                break;
+            case 3:
+                outCoordinate.z = float(0);
+                outCoordinate.x = 1.0f - uvCache.y;
+                outCoordinate.y = uvCache.x - 1.0f;
+                break;
+            case 4:
+                outCoordinate.z = float(0);
+                outCoordinate.x = uvCache.x - 1.0f;
+                outCoordinate.y = uvCache.y;
+                break;
+            case 5:
+                outCoordinate.z = float(1);
+                outCoordinate.x = uvCache.x - 1.0f;
+                outCoordinate.y = uvCache.y;
+                break;
+            default:
+                break;
+        }
+    } else if (uvCache.x < 0.0) {
+        switch (int(outCoordinate.z)) {
+            case 0:
+                outCoordinate.z = float(4);
+                outCoordinate.x = 1.0f + uvCache.x;
+                outCoordinate.y = uvCache.y;
+                break;
+            case 1:
+                outCoordinate.z = float(5);
+                outCoordinate.x = 1.0f + uvCache.x;
+                outCoordinate.y = uvCache.y;
+                break;
+            case 2:
+                outCoordinate.z = float(1);
+                outCoordinate.x = 1.0f - uvCache.y;
+                outCoordinate.y = 1.0f + uvCache.x;
+                break;
+            case 3:
+                outCoordinate.z = float(1);
+                outCoordinate.x = uvCache.y;
+                outCoordinate.y = -uvCache.x;
+                break;
+            case 4:
+                outCoordinate.z = float(1);
+                outCoordinate.x = 1.0f + uvCache.x;
+                outCoordinate.y = uvCache.y;
+                break;
+            case 5:
+                outCoordinate.z = float(0);
+                outCoordinate.x = 1.0f + uvCache.x;
+                outCoordinate.y = uvCache.y;
+                break;
+            default:
+                break;
+        }
+    }
+    return outCoordinate;
+}
+#endif // BGFX_SHADER_LANGUAGE_GLSL
 
 float linearToLogDepth(float linearDepth) {
     return log((exp(4.0) - 1.0) * linearDepth + 1.0) / 4.0;
@@ -681,8 +856,8 @@ vec4 sampleVolume(highp sampler2DArray volume, ivec3 dimensions, vec3 uvw) {
     float depth = uvw.z * float(dimensions.z) - 0.5;
     int index = clamp(int(depth), 0, dimensions.z - 2);
     float offset = clamp(depth - float(index), 0.0, 1.0);
-    vec4 a = texture2DArray(volume, vec3(uvw.xy, index)).rgba;
-    vec4 b = texture2DArray(volume, vec3(uvw.xy, index + 1)).rgba;
+    vec4 a = texture2DArrayLod(volume, vec3(uvw.xy, index), 0.0).rgba;
+    vec4 b = texture2DArrayLod(volume, vec3(uvw.xy, index + 1), 0.0).rgba;
     return mix(a, b, offset);
 }
 
@@ -780,7 +955,7 @@ float calculateDirectOcclusionForDiscreteLight(int lightIndex, vec3 surfaceWorld
             intersection = intersection * 0.5f + 0.5f;
             sampleCoordinates = vec3(intersection.x, 1.f - intersection.z, float(2));
         } else {
-            vec3 intersection = findLinePlaneIntersectionForCubemap(vec3(0.f, - 1.f, 0.f), lightToPoint);
+            vec3 intersection = findLinePlaneIntersectionForCubemap(vec3(0.f, -1.f, 0.f), lightToPoint);
             intersection = intersection * 0.5f + 0.5f;
             sampleCoordinates = vec3(intersection.x, intersection.z, float(3));
         }
@@ -790,7 +965,7 @@ float calculateDirectOcclusionForDiscreteLight(int lightIndex, vec3 surfaceWorld
             intersection = intersection * 0.5f + 0.5f;
             sampleCoordinates = vec3(intersection.x, intersection.y, float(4));
         } else {
-            vec3 intersection = findLinePlaneIntersectionForCubemap(vec3(0.f, 0.f, - 1.f), lightToPoint);
+            vec3 intersection = findLinePlaneIntersectionForCubemap(vec3(0.f, 0.f, -1.f), lightToPoint);
             intersection = intersection * 0.5f + 0.5f;
             sampleCoordinates = vec3(1.f - intersection.x, intersection.y, float(5));
         }
@@ -809,7 +984,11 @@ float calculateDirectOcclusionForDiscreteLight(int lightIndex, vec3 surfaceWorld
             float y = float(iy - filterOffset) + 0.5f;
             float x = float(ix - filterOffset) + 0.5f;
             vec2 offset = vec2(x, y) * PointLightShadowParams1.w;
+#if BGFX_SHADER_LANGUAGE_GLSL
             vec3 offsetSampleCoordinates = getSampleCoordinateForAdjacentFace(vec3(sampleCoordinates.x + offset.x, 1.0f - sampleCoordinates.y + offset.y, sampleCoordinates.z));
+#else
+            vec3 offsetSampleCoordinates = getSampleCoordinateForAdjacentFace(vec3(sampleCoordinates.x + offset.x, sampleCoordinates.y + offset.y, sampleCoordinates.z));
+#endif
             offsetSampleCoordinates.z = float(lightInfo.shadowProbeIndex * 6) + offsetSampleCoordinates.z;
             directOcclusion += shadow2DArray(s_PointLightShadowTextureArray, vec4(offsetSampleCoordinates, surfaceProjPos.z));
         }
@@ -826,7 +1005,7 @@ DiscreteLightingContributions evaluateDiscreteLightsDirectContribution(vec2 ligh
     {
         return lightContrib;
     }
-    vec3 clusterId = getClusterIndex(lightClusterUV, - surfacePos.z, ClusterDimensions.xyz, ClusterNearFarWidthHeight.xy, ClusterNearFarWidthHeight.zw, ClusterSize.xy);
+    vec3 clusterId = getClusterIndex(lightClusterUV, -surfacePos.z, ClusterDimensions.xyz, ClusterNearFarWidthHeight.xy, ClusterNearFarWidthHeight.zw, ClusterSize.xy);
     if (clusterId.x >= ClusterDimensions.x || clusterId.y >= ClusterDimensions.y || clusterId.z >= ClusterDimensions.z) {
         return lightContrib;
     }
