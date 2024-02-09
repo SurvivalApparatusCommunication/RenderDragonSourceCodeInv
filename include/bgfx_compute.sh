@@ -57,8 +57,14 @@
 		_type _name[];                                          \
 	}
 
+#define __BUFFER(_name, _type, _reg)                \
+	layout(std430, binding=_reg) buffer _name ## Buffer \
+	{                                                           \
+		_type _name[];                                          \
+	}
+
 #define BUFFER_RO(_name, _type, _reg) __BUFFER_XX(_name, _type, _reg, readonly)
-#define BUFFER_RW(_name, _type, _reg) __BUFFER_XX(_name, _type, _reg, readwrite)
+#define BUFFER_RW(_name, _type, _reg) __BUFFER(_name, _type, _reg)
 #define BUFFER_WR(_name, _type, _reg) __BUFFER_XX(_name, _type, _reg, writeonly)
 
 #define NUM_THREADS(_x, _y, _z) layout (local_size_x = _x, local_size_y = _y, local_size_z = _z) in;
