@@ -28,11 +28,14 @@ if not exist %SHADERC% (
 
 if not exist data (
     echo Cloning RenderDragonData
-    git clone https://github.com/ddf8196/RenderDragonData.git data
+    git clone --branch %DATA_VERSION% --single-branch --depth 1 --origin origin https://github.com/ddf8196/RenderDragonData.git data
 )
 if not exist %DATA_DIR% (
     echo Updating RenderDragonData
     pushd data
+    git fetch origin %DATA_VERSION%:%DATA_VERSION%
+    git checkout %DATA_VERSION%
+    git checkout .
     git pull
     popd
 )
