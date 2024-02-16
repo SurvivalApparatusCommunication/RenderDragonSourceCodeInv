@@ -71,7 +71,7 @@ void main() {
 
     vec3 n = a_normal.xyz;
     vec3 t = a_tangent.xyz;
-    vec3 b = cross(n, t);
+    vec3 b = cross(n, t) * a_tangent.w;
 
     normal = mul(u_model[0], vec4(n, 0.0)).xyz;
     tangent = mul(u_model[0], vec4(t, 0.0)).xyz;
