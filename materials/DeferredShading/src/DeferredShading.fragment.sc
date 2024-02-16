@@ -5,7 +5,7 @@ $input v_projPosition, v_texcoord0
 
 #if !defined(FALLBACK) && (BGFX_SHADER_LANGUAGE_GLSL >= 310 || BGFX_SHADER_LANGUAGE_HLSL >= 500 || BGFX_SHADER_LANGUAGE_PSSL || BGFX_SHADER_LANGUAGE_SPIRV || BGFX_SHADER_LANGUAGE_METAL)
 
-#include "DeferredLighting.sc"
+#include "DoDeferredShading.sc"
 
 SAMPLER2D_AUTOREG(s_ColorMetalness);
 SAMPLER2D_AUTOREG(s_SceneDepth);

@@ -39,7 +39,7 @@ SAMPLER2D_AUTOREG(s_LightMapTexture);
 
 #if defined(GEOMETRY_PREPASS) || defined(GEOMETRY_PREPASS_ALPHA_TEST)
 
-BUFFER_RO(s_PBRData, PBRTextureData, 3);
+BUFFER_RO_AUTOREG(s_PBRData, PBRTextureData);
 
 vec2 octWrap(vec2 v) {
     return (1.0 - abs(v.yx)) * ((2.0 * step(0.0, v)) - 1.0);
