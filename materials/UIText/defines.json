@@ -1,0 +1,10 @@
+{
+    "flag": {
+        "FONT_TYPE": {
+            "Bitmap": ["FONT_TYPE_BITMAP"],
+            "BitmapSmooth": ["FONT_TYPE_BITMAP_SMOOTH"],
+            "TrueType": ["FONT_TYPE_TRUE_TYPE"],
+            "MSDF": ["FONT_TYPE_MSDF"]
+        }
+    }
+}
