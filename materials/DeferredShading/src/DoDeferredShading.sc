@@ -73,26 +73,6 @@ struct PBRLightingContributions {
     vec3 emissive;
 };
 
-struct VertexInput {
-    vec3 position;
-    vec2 texcoord0;
-};
-
-struct VertexOutput {
-    vec4 position;
-    vec3 projPosition;
-    vec2 texcoord0;
-};
-
-struct FragmentInput {
-    vec3 projPosition;
-    vec2 texcoord0;
-};
-
-struct FragmentOutput {
-    vec4 Color0;
-};
-
 uniform mat4 PointLightProj;
 uniform vec4 SunDir;
 uniform vec4 ShadowBias;
