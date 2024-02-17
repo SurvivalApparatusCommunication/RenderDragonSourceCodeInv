@@ -4,6 +4,8 @@ $input v_texcoord0
 
 uniform vec4 BloomParams1;
 uniform vec4 BloomParams2;
+uniform vec4 RenderMode;
+uniform vec4 ScreenSize;
 
 SAMPLER2D_AUTOREG(s_HDRi);
 SAMPLER2D_AUTOREG(s_BlurPyramidTexture);
@@ -14,26 +16,25 @@ float luminance(vec3 clr) {
     return dot(clr, vec3(0.2126, 0.7152, 0.0722));
 }
 
-vec4 HighPass(vec4 col, float threshold) {
+vec4 HighPass(vec4 col) {
     float lum = luminance(col.rgb);
-    col.rgb *= step(threshold, lum);
     return vec4(col.rgb, lum);
 }
 
-vec4 HighPassDFDownsample(sampler2D srcImg, sampler2D depthImg, vec2 uv, vec2 pixelOffsets, float brightnessThreshold) {
+vec4 HighPassDFDownsample(sampler2D srcImg, sampler2D depthImg, vec2 uv, vec2 pixelOffsets) {
     vec4 col = vec4(0, 0, 0, 0);
-    col += 0.5 * HighPass(texture2D(srcImg, uv), brightnessThreshold);
-    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(pixelOffsets.x, pixelOffsets.y)), brightnessThreshold);
-    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(-pixelOffsets.x, pixelOffsets.y)), brightnessThreshold);
-    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(pixelOffsets.x, -pixelOffsets.y)), brightnessThreshold);
-    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(-pixelOffsets.x, -pixelOffsets.y)), brightnessThreshold);
+    col += 0.5 * HighPass(texture2D(srcImg, uv));
+    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(pixelOffsets.x, pixelOffsets.y)));
+    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(-pixelOffsets.x, pixelOffsets.y)));
+    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(pixelOffsets.x, -pixelOffsets.y)));
+    col += 0.125 * HighPass(texture2D(srcImg, uv + vec2(-pixelOffsets.x, -pixelOffsets.y)));
     if (bool(BloomParams2.z)) {
         float minRange = BloomParams2.x;
         float maxRange = BloomParams2.y;
         float depth = texture2D(depthImg, uv).r;
         depth = ((depth * maxRange) - minRange) / (maxRange - minRange);
-        depth = clamp(depth, BloomParams1.w, 1.0);
-        col *= pow(depth, BloomParams1.z);
+        depth = clamp(depth, BloomParams1.z, 1.0);
+        col *= pow(depth, BloomParams1.y);
     }
     return col;
 }
@@ -81,8 +82,7 @@ vec4 BloomHighPass(vec2 texcoord0) {
     float xOffset = 1.5 * abs(dFdx(texcoord0.x));
     float yOffset = 1.5 * abs(dFdy(texcoord0.y));
     vec2 uv = texcoord0;
-    float threshold = BloomParams1.y;
-    return HighPassDFDownsample(s_HDRi, s_DepthTexture, uv, vec2(xOffset, yOffset), threshold);
+    return HighPassDFDownsample(s_HDRi, s_DepthTexture, uv, vec2(xOffset, yOffset));
 }
 
 vec4 DFDownSample(vec2 texcoord0) {
