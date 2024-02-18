@@ -29,46 +29,49 @@ SAMPLER2D_AUTOREG(s_MatTexture);
 SAMPLER2D_AUTOREG(s_MatTexture1);
 
 void main() {
-    #if DEPTH_ONLY
-        gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
-        return;
-    #elif DEPTH_ONLY_OPAQUE
-        gl_FragColor = vec4(applyFog(vec3(1.0, 1.0, 1.0), v_fog.rgb, v_fog.a), 1.0);
-        return;
+#if DEPTH_ONLY
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+    return;
+#elif DEPTH_ONLY_OPAQUE
+    gl_FragColor = vec4(applyFog(vec3(1.0, 1.0, 1.0), v_fog.rgb, v_fog.a), 1.0);
+    return;
+#else
+
+#if !ALPHA_TEST
+    vec4 diffuse = texture2D(s_MatTexture, v_texcoords.xy);
+	vec4 base = texture2D(s_MatTexture, v_texcoords.zw);
+
+    #if TINTING
+	    base.a = mix(diffuse.r * diffuse.a, diffuse.a, v_color0.a);
+	    base.rgb *= v_color0.rgb;
     #endif
 
-    #if !ALPHA_TEST
-    	vec4 diffuse = texture2D(s_MatTexture, v_texcoords.xy);
-	    vec4 base = texture2D(s_MatTexture, v_texcoords.zw);
+    base = applyLighting(base, v_light);
+    base = applyHudOpacity(base, HudOpacity.x);
+    base.rgb = applyFog(base.rgb, v_fog.rgb, v_fog.a);
 
-        #if TINTING
-	        base.a = mix(diffuse.r * diffuse.a, diffuse.a, v_color0.a);
-	        base.rgb *= v_color0.rgb;
-        #endif
+	gl_FragColor = base;
+#else
+    vec4 albedo = getActorAlbedoNoColorChange(v_texcoord0, s_MatTexture, s_MatTexture1, MatColor);
 
-        base = applyLighting(base, v_light);
-        base = applyHudOpacity(base, HudOpacity.x);
-        base.rgb = applyFog(base.rgb, v_fog.rgb, v_fog.a);
+    float alpha = mix(albedo.a, (albedo.a * OverlayColor.a), TintedAlphaTestEnabled.x);
+    if(shouldDiscard(albedo.rgb, alpha, ActorFPEpsilon.x)) {
+        discard;
+    }
 
-	    gl_FragColor = base;
-    #else
-        vec4 albedo = getActorAlbedoNoColorChange(v_texcoord0, s_MatTexture, s_MatTexture1, MatColor);
+    #if CHANGE_COLOR_MULTI
+        albedo = applyMultiColorChange(albedo, ChangeColor.rgb, MultiplicativeTintColor.rgb);
+    #elif CHANGE_COLOR
+        albedo = applyColorChange(albedo, ChangeColor, albedo.a);
+        albedo.a *= ChangeColor.a;
+    #endif // CHANGE_COLOR_MULTI
 
-        float alpha = mix(albedo.a, (albedo.a * OverlayColor.a), TintedAlphaTestEnabled.x);
-        if(shouldDiscard(albedo.rgb, alpha, ActorFPEpsilon.x))
-            discard;
+    albedo.a = max(UseAlphaRewrite.r, albedo.a);
+    albedo = applyActorDiffuse(albedo, v_color0.rgb, v_light, ColorBased.x, OverlayColor);
+    albedo = applyHudOpacity(albedo, HudOpacity.x);
+    albedo.rgb = applyFog(albedo.rgb, v_fog.rgb, v_fog.a);
+    gl_FragColor = albedo;
+#endif // !ALPHA_TEST
 
-        #if CHANGE_COLOR_MULTI
-            albedo = applyMultiColorChange(albedo, ChangeColor.rgb, MultiplicativeTintColor.rgb);
-        #elif CHANGE_COLOR
-            albedo = applyColorChange(albedo, ChangeColor, albedo.a);
-            albedo.a *= ChangeColor.a;
-        #endif // CHANGE_COLOR_MULTI
-
-        albedo.a = max(UseAlphaRewrite.r, albedo.a);
-        albedo = applyActorDiffuse(albedo, v_color0.rgb, v_light, ColorBased.x, OverlayColor);
-        albedo = applyHudOpacity(albedo, HudOpacity.x);
-        albedo.rgb = applyFog(albedo.rgb, v_fog.rgb, v_fog.a);
-        gl_FragColor = albedo;
-    #endif // !ALPHA_TEST
+#endif // DEPTH_ONLY
 }

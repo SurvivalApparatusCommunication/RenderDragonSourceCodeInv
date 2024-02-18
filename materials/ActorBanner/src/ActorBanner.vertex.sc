@@ -44,12 +44,16 @@ void main() {
     
     //StandardTemplate_VertSharedTransform
     vec3 worldPosition;
-    #ifdef INSTANCING
-        mat4 model = mtxFromCols(i_data0, i_data1, i_data2, vec4(0.0, 0.0, 0.0, 1.0));
-        worldPosition = instMul(model, vec4(a_position, 1.0)).xyz;
-    #else
-        worldPosition = mul(World, vec4(a_position, 1.0)).xyz;
-    #endif
+#ifdef INSTANCING
+    mat4 model;
+    model[0] = vec4(i_data0.x, i_data1.x, i_data2.x, 0);
+    model[1] = vec4(i_data0.y, i_data1.y, i_data2.y, 0);
+    model[2] = vec4(i_data0.z, i_data1.z, i_data2.z, 0);
+    model[3] = vec4(i_data0.w, i_data1.w, i_data2.w, 1);
+    worldPosition = instMul(model, vec4(a_position, 1.0)).xyz;
+#else
+    worldPosition = mul(World, vec4(a_position, 1.0)).xyz;
+#endif
     
     vec4 position;// = mul(u_viewProj, vec4(worldPosition, 1.0));
 
@@ -65,29 +69,29 @@ void main() {
     texcoords.zw = (texcoord0 * BannerUVOffsetsAndScales[0].zw) + BannerUVOffsetsAndScales[0].xy;
 
     vec4 color;
-    #if !ALPHA_TEST && !DEPTH_ONLY_OPAQUE && TINTING
-	    color = BannerColors[frameIndex];
-	    color.a = 1.0;
-	    if (frameIndex > 0) {
-		    color.a = 0.0;
-	    }
-    #else
-        color = a_color0;
-    #endif
+#if !ALPHA_TEST && !DEPTH_ONLY_OPAQUE && TINTING
+	color = BannerColors[frameIndex];
+	color.a = 1.0;
+	if (frameIndex > 0) {
+	    color.a = 0.0;
+	}
+#else
+    color = a_color0;
+#endif
 
-    #if DEPTH_ONLY
-        v_texcoord0 = vec2(0.0, 0.0);
-        v_color0 = vec4(0.0, 0.0, 0.0, 0.0);
-    #else
-        v_texcoord0 = texcoord0;
-        v_color0 = color;
-    #endif
+#if DEPTH_ONLY
+    v_texcoord0 = vec2(0.0, 0.0);
+    v_color0 = vec4(0.0, 0.0, 0.0, 0.0);
+#else
+    v_texcoord0 = texcoord0;
+    v_color0 = color;
+#endif
 
-    #if ALPHA_TEST || DEPTH_ONLY_OPAQUE
-        v_texcoords = vec4(0.0, 0.0, 0.0, 0.0);
-    #else
-        v_texcoords = texcoords;
-    #endif
+#if ALPHA_TEST || DEPTH_ONLY_OPAQUE
+    v_texcoords = vec4(0.0, 0.0, 0.0, 0.0);
+#else
+    v_texcoords = texcoords;
+#endif
 
     v_fog = fog;
     v_light = light;
