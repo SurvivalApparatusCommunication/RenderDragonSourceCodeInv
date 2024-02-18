@@ -30,23 +30,23 @@ void main() {
     vec4 light = vec4(lightIntensity * TileLightColor.rgb, 1.0);
 
     vec3 worldPosition;
-    #if INSTANCING
-        mat4 model = mtxFromCols(i_data0, i_data1, i_data2, vec4(0.0, 0.0, 0.0, 1.0));
-        worldPosition = instMul(model, vec4(a_position, 1.0)).xyz;
-    #else
-        worldPosition = mul(World, vec4(a_position, 1.0)).xyz;
-    #endif
+#if INSTANCING
+    mat4 model = mtxFromCols(i_data0, i_data1, i_data2, vec4(0.0, 0.0, 0.0, 1.0));
+    worldPosition = instMul(model, vec4(a_position, 1.0)).xyz;
+#else
+    worldPosition = mul(World, vec4(a_position, 1.0)).xyz;
+#endif
 
     vec4 position = jitterVertexPosition(worldPosition);
     float cameraDepth = position.z;
     float fogIntensity = calculateFogIntensity(cameraDepth, FogControl.z, FogControl.x, FogControl.y);
     vec4 fog = vec4(FogColor.rgb, fogIntensity);
 
-    #if DEPTH_ONLY
-        v_color0 = vec4(0.0, 0.0, 0.0, 0.0);
-    #else
-        v_color0 = a_color0;
-    #endif
+#if DEPTH_ONLY
+    v_color0 = vec4(0.0, 0.0, 0.0, 0.0);
+#else
+    v_color0 = a_color0;
+#endif
     
     v_glintUV = glintUV;
     v_light = light;
